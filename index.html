@@ -203,10 +203,11 @@ const todayKey=WMAP[todayWd]||null;
 let tab='workout';
 let activeDay=todayKey||'chest';
 const expanded=new Set();
+let hview='date'; let hpart=todayKey||'chest'; const expandedH=new Set();
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1700);}
 
 /* ====== ナビ・タブ ====== */
-const NAV=[['workout','🏋️','ワーク'],['weight','⚖️','体重'],['info','ℹ️','概要']];
+const NAV=[['workout','🏋️','ワーク'],['history','📅','履歴'],['weight','⚖️','体重'],['info','ℹ️','概要']];
 function buildNav(){document.getElementById('nav').innerHTML=NAV.map(([k,i,l])=>
   `<button class="${tab===k?'on':''}" onclick="setTab('${k}')"><span class="ic">${i}</span><span class="lb">${l}</span></button>`).join('');}
 function setTab(t){tab=t;expanded.clear();buildNav();render();window.scrollTo(0,0);}
@@ -214,6 +215,7 @@ function setTab(t){tab=t;expanded.clear();buildNav();render();window.scrollTo(0,
 function render(){
   document.getElementById('fab').style.display=tab==='workout'?'block':'none';
   if(tab==='workout')renderWorkout();
+  else if(tab==='history')renderHistory();
   else if(tab==='weight')renderWeight();
   else renderInfo();
 }
@@ -409,6 +411,7 @@ function renderInfo(){
      <li>⏱で休憩タイマー(アラートで音＋点滅)。</li>
      <li>「✎ 編集」で部位×加重方法から種目を追加・並べ替え。</li>
      <li>体重タブで体重を記録し推移を確認。</li>
+     <li>「履歴」タブで、日付ごと／部位ごとに実施記録を確認。</li>
    </ol><p class="pv" style="margin-top:10px">${stmsg}</p></div>
    <div class="card"><h3>📅 週スケジュール</h3><div class="week">${week}</div>
      <p>順番は 胸→背中→肩→脚→腕。共働筋(三頭/二頭/前部三角筋)が連日痛むのを避ける配置。</p></div>
@@ -463,6 +466,88 @@ function tPreset(p){tAlert=p;tFired=false;renderTimer();}
 function showSheet(){document.getElementById('ov').classList.add('show');}
 function closeSheet(){document.getElementById('ov').classList.remove('show');}
 document.getElementById('ov').addEventListener('click',e=>{if(e.target.id==='ov')closeSheet();});
+
+/* ====== 履歴 ====== */
+function dayMeta(k){const d=PROGRAM.find(x=>x.key===k);return d?{label:d.label,color:d.color}:{label:k,color:'var(--muted)'};}
+function setsStr(sets){const a=sets.filter(s=>s.w!=null||s.r!=null).map(s=>`${s.w!=null?fmtW(s.w):'-'}×${s.r!=null?s.r:'-'}`);return a.length?a.join(',  '):'記録なし';}
+function setsDone(sets){return sets.filter(s=>s.w!=null&&s.r!=null).length;}
+function wdName(date){const[y,m,d]=date.split('-').map(Number);return ['日','月','火','水','木','金','土'][new Date(y,m-1,d).getDay()];}
+function setTab2(){} // noop
+function setHView(v){hview=v;expandedH.clear();renderHistory();}
+function setHPart(k){hpart=k;expandedH.clear();renderHistory();}
+function togH(k){expandedH.has(k)?expandedH.delete(k):expandedH.add(k);renderHistory();}
+
+function buildByDate(){
+  const map={};
+  Object.keys(LOGS).forEach(k=>{const i=k.indexOf('|'),dk=k.slice(0,i),name=k.slice(i+1);
+    LOGS[k].forEach(s=>{(map[s.date]=map[s.date]||{});(map[s.date][dk]=map[s.date][dk]||[]).push({name,sets:s.sets});});});
+  return Object.keys(map).sort().reverse().map(date=>({date,days:map[date]}));
+}
+function lineChart(vals){
+  if(vals.length<2)return '';
+  const W=Math.min(440,(document.querySelector('.app')?.clientWidth||360)-66),H=140;
+  const mn=Math.min(...vals),mx=Math.max(...vals),pad=(mx-mn)*0.15||1,lo=mn-pad,hi=mx+pad;
+  const X=i=>15+i/(vals.length-1)*W,Y=v=>10+(1-(v-lo)/(hi-lo))*(H-30);
+  const pts=vals.map((v,i)=>`${X(i)},${Y(v)}`).join(' ');
+  return `<div class="card"><div class="pv" style="margin-bottom:6px">セッション総挙上量の推移</div><svg width="${W+30}" height="${H}">
+    <text x="15" y="${Y(mx)-4}" fill="var(--muted2)" font-size="10">${Math.round(mx).toLocaleString()}kg</text>
+    <text x="15" y="${Y(mn)+12}" fill="var(--muted2)" font-size="10">${Math.round(mn).toLocaleString()}kg</text>
+    <polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>
+    ${vals.map((v,i)=>`<circle cx="${X(i)}" cy="${Y(v)}" r="${i===vals.length-1?4:2.5}" fill="var(--accent)"/>`).join('')}</svg></div>`;
+}
+function sessionCard(key,dateLabel,sub,totS,totV,bodyHtml){
+  const open=expandedH.has(key);
+  return `<div class="card" style="padding:0">
+    <div class="head" onclick="togH('${key}')">
+      <div><div style="font-weight:800;font-size:1.02rem">${dateLabel}</div><div style="margin-top:4px">${sub}</div></div>
+      <div style="margin-left:auto;text-align:right"><div class="pv">${totS}セット</div><div style="font-weight:800;font-size:.9rem">${Math.round(totV).toLocaleString()}kg</div></div>
+      <span class="chev" style="margin-left:8px">${open?'▾':'▸'}</span></div>
+    ${open?`<div style="padding:0 13px 13px">${bodyHtml}</div>`:''}</div>`;
+}
+function exLines(list){return list.map(x=>`<div style="padding:7px 0;border-top:1px solid var(--line)"><div style="font-weight:700;font-size:.85rem">${esc(x.name)}</div><div class="pv" style="margin-top:2px">${setsStr(x.sets)}</div></div>`).join('');}
+
+function histDate(){
+  const arr=buildByDate();
+  if(!arr.length)return '<p style="color:var(--muted2);text-align:center;padding:30px 0">まだ記録がありません。<br>ワークアウトを保存すると、ここに日付ごとに表示されます。</p>';
+  return arr.map(({date,days})=>{
+    const[, m,d]=date.split('-').map(Number);
+    let totV=0,totS=0,badges='',body='';
+    Object.keys(days).forEach(dk=>{const meta=dayMeta(dk),list=days[dk];
+      const v=list.reduce((a,x)=>a+vol(x.sets),0),sc=list.reduce((a,x)=>a+setsDone(x.sets),0);
+      totV+=v;totS+=sc;
+      badges+=`<span class="badge" style="color:${meta.color};border-color:${meta.color}66;margin-right:5px">${meta.label}</span>`;
+      body+=`<div style="margin-top:6px"><div class="pv" style="color:${meta.color};font-weight:800">${meta.label}の日</div>${exLines(list)}</div>`;});
+    return sessionCard('hd-'+date,`${m}/${d} <span class="pv">(${wdName(date)})</span>`,badges,totS,totV,body);
+  }).join('');
+}
+
+function histPart(){
+  let h=`<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:10px">${PROGRAM.map(d=>`<span class="pill ${hpart===d.key?'on':''}" style="margin:0;flex:0 0 auto" onclick="setHPart('${d.key}')">${d.label}</span>`).join('')}</div>`;
+  const prefix=hpart+'|',map={};
+  Object.keys(LOGS).filter(k=>k.indexOf(prefix)===0).forEach(k=>{const name=k.slice(prefix.length);
+    LOGS[k].forEach(s=>{(map[s.date]=map[s.date]||[]).push({name,sets:s.sets});});});
+  const datesAsc=Object.keys(map).sort();
+  if(!datesAsc.length)return h+'<p style="color:var(--muted2);text-align:center;padding:30px 0">この部位の記録はまだありません。</p>';
+  const vols=datesAsc.map(dt=>map[dt].reduce((a,x)=>a+vol(x.sets),0));
+  const meta=dayMeta(hpart);
+  h+=`<div class="pv" style="margin:4px 0 10px">${meta.label}の記録: ${datesAsc.length}回</div>`;
+  h+=lineChart(vols);
+  h+=[...datesAsc].reverse().map(date=>{const[, m,d]=date.split('-').map(Number),list=map[date];
+    const v=list.reduce((a,x)=>a+vol(x.sets),0),sc=list.reduce((a,x)=>a+setsDone(x.sets),0);
+    return sessionCard('hp-'+date,`${m}/${d} <span class="pv">(${wdName(date)})</span>`,`<span class="badge" style="color:${meta.color};border-color:${meta.color}66">${meta.label}</span>`,sc,v,exLines(list));
+  }).join('');
+  return h;
+}
+
+function renderHistory(){
+  document.getElementById('tabsWrap').innerHTML='';
+  document.documentElement.style.setProperty('--accent','var(--accent)');
+  const seg=`<div style="display:flex;gap:8px;margin-bottom:14px">
+    <button class="pill ${hview==='date'?'on':''}" style="flex:1;height:42px;margin:0;border:1px solid ${hview==='date'?'var(--accent)':'var(--line)'}" onclick="setHView('date')">日付ごと</button>
+    <button class="pill ${hview==='part'?'on':''}" style="flex:1;height:42px;margin:0;border:1px solid ${hview==='part'?'var(--accent)':'var(--line)'}" onclick="setHView('part')">部位ごと</button></div>`;
+  document.getElementById('main').innerHTML=
+    `<div class="eyebrow" style="color:var(--accent)">HISTORY</div><h2 style="margin:.05em 0 14px;font-size:1.5rem;font-weight:800">トレ履歴</h2>`+seg+(hview==='date'?histDate():histPart());
+}
 
 /* ====== 起動 ====== */
 initStore();buildNav();render();
