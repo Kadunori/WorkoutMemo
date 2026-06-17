@@ -60,12 +60,12 @@
   .srow:first-child{border-top:none;}
   .stop{display:flex;justify-content:space-between;margin-bottom:6px;}
   .sn{color:var(--accent);font-weight:800;font-size:.78rem;} .pv{color:var(--muted);font-size:.72rem;}
-  .ins{display:flex;align-items:center;gap:6px;}
-  .ins .u{color:var(--muted);font-size:.74rem;width:30px;}
-  .sb{width:40px;height:42px;border-radius:10px;background:var(--bg);border:1px solid var(--line);color:var(--txt);font-size:21px;font-weight:800;}
-  .ins input{width:64px;height:42px;border-radius:10px;background:var(--bg);border:1px solid var(--line);color:var(--txt);font-size:16px;font-weight:700;text-align:center;}
+  .ins{display:flex;align-items:center;gap:8px;}
+  .sb{width:50px;height:54px;border-radius:12px;background:var(--bg);border:1px solid var(--line);color:var(--txt);font-size:26px;font-weight:800;}
+  .ins input{width:80px;height:54px;border-radius:12px;background:var(--bg);border:1px solid var(--line);color:var(--txt);font-size:20px;font-weight:700;text-align:center;}
   .ins input:focus{outline:none;border-color:var(--accent);}
-  .si{color:var(--muted2);font-size:.66rem;}
+  .ins .u{color:var(--muted);font-size:.74rem;width:34px;}
+  .si{color:var(--muted2);font-size:.72rem;min-width:52px;}
   .saverow{display:flex;gap:8px;margin-top:8px;}
   .btn{flex:1;height:46px;border-radius:12px;border:none;font-weight:800;font-size:.92rem;background:var(--accent);color:#0d0e11;}
   .btn.g{flex:0 0 auto;background:var(--panel);border:1px solid var(--line);color:var(--muted);padding:0 14px;}
@@ -143,31 +143,50 @@ const CAT={
 };
 const C={chest:'var(--chest)',back:'var(--back)',delts:'var(--delts)',legs:'var(--legs)',arms:'var(--arms)'};
 const DEFAULT=[
- {key:'chest',label:'胸',en:'CHEST',color:C.chest,weekday:1,focus:'胸18 ・ 三頭8 ・ 腹4',ex:[
-   ['バーベルベンチプレス','4 × 5–8','1–2','2–3分','','bb'],['インクラインダンベルプレス','4 × 8–12','1–2','2分','','db'],
-   ['ウェイテッドディップス(前傾=胸)','3 × 8–12','1–2','2分','','bw'],['ケーブルフライ(高さ変えて)','4 × 12–15','0–1','60–90秒','','machine'],
-   ['ペックデックフライ','3 × 12–15','0–1','60秒','','iso'],['ケーブルプッシュダウン','4 × 10–15','0–1','60秒','三頭','machine'],
-   ['オーバーヘッド・エクステンション','4 × 10–15','0–1','60秒','三頭','machine'],['アブ(任意)','4 × 12–15','0–1','60秒','腹','bw']]},
- {key:'back',label:'背中',en:'BACK',color:C.back,weekday:2,focus:'背中21〜24 ・ 二頭4',ex:[
-   ['懸垂 or ラットプルダウン','4 × 6–10','1–2','2分','','bw'],['バーベルロウ','4 × 6–10','1–2','2分','','bb'],
-   ['シーテッドケーブルロウ','4 × 8–12','1–2','90秒','','machine'],['ワンハンドダンベルロウ','3 × 10–12','1–2','90秒','','db'],
-   ['ラットプルダウン(別グリップ)','3 × 10–12','0–1','90秒','','machine'],['ストレートアーム・プルダウン','3 × 12–15','0–1','60秒','','machine'],
-   ['ハンマーカール','4 × 10–12','0–1','60秒','二頭','db']]},
- {key:'delts',label:'肩',en:'SHOULDERS',color:C.delts,weekday:4,focus:'肩21 ・ 僧帽7',note:'胸(月)から中1日空き前部三角筋・三頭は回復済み。まだ痛むならプレスを3セットに減らしサイド/リアレイズ優先。',ex:[
-   ['オーバーヘッドプレス','4 × 6–10','1–2','2分','','bb'],['マシンショルダープレス or アーノルド','3 × 10–12','1–2','90秒','','iso'],
-   ['ダンベルサイドレイズ','4 × 12–20','0–1','60秒','','db'],['ケーブルサイドレイズ','3 × 15–20','0–1','45–60秒','','machine'],
-   ['リアデルトフライ','4 × 15–20','0–1','60秒','','iso'],['フェイスプル','3 × 15–20','0–1','60秒','','machine'],
-   ['シュラッグ','4 × 10–15','0–1','60秒','僧帽','bb'],['アップライトロウ','3 × 12–15','0–1','60秒','','bb']]},
- {key:'legs',label:'脚',en:'LEGS',color:C.legs,weekday:5,focus:'四頭11 ・ ハム8 ・ 尻3+ ・ カーフ7',note:'最も筋肉痛が出やすい日。RDL・スクワットは新規導入時は初回を軽めに。',ex:[
-   ['バーベルスクワット','4 × 5–8','1–2','2–3分','','bb'],['レッグプレス','4 × 10–12','1–2','2分','','machine'],
-   ['レッグエクステンション','3 × 12–15','0–1','60–90秒','','iso'],['ルーマニアンデッドリフト','4 × 8–10','1–2','2分','','bb'],
-   ['ライイングレッグカール','4 × 10–12','0–1','90秒','','iso'],['ヒップスラスト','3 × 10–12','1–2','90秒','臀部','bb'],
-   ['スタンディングカーフレイズ','4 × 8–12','0–1','60秒','カーフ','iso'],['シーテッドカーフレイズ','3 × 12–15','0–1','60秒','カーフ','iso']]},
- {key:'arms',label:'腕',en:'ARMS',color:C.arms,weekday:6,focus:'二頭13 ・ 三頭13',note:'翌日は休み。次週の胸まで三頭を回復させる配置。',ex:[
-   ['バーベルカール','4 × 6–10','1–2','90秒','二頭','bb'],['インクラインダンベルカール','3 × 10–12','0–1','60秒','二頭','db'],
-   ['ハンマーカール','3 × 10–12','0–1','60秒','二頭','db'],['ケーブル/プリーチャーカール','3 × 12–15','0–1','60秒','二頭','machine'],
-   ['クローズグリップベンチ or ディップス','4 × 6–10','1–2','90秒','三頭','bb'],['ライイング・エクステンション','3 × 8–12','1–2','60秒','三頭','bb'],
-   ['オーバーヘッドケーブル・エクステンション','3 × 12–15','0–1','60秒','三頭','machine'],['ロープ・プッシュダウン','3 × 12–15','0–1','45–60秒','三頭','machine']]},
+ {key:'chest',label:'胸',en:'CHEST',color:C.chest,weekday:1,focus:'胸(BB+DB+スミス+ISO+ケーブル) ・ 三頭(BB+マシン) ・ 腹',ex:[
+   ['バーベルベンチプレス','4 × 5–8','1–2','2–3分','','bb'],
+   ['インクラインダンベルプレス','3 × 8–12','1–2','2分','','db'],
+   ['スミスデクラインプレス','3 × 10–12','1–2','90秒','','smith'],
+   ['ペックデックフライ','3 × 12–15','0–1','60秒','','iso'],
+   ['ケーブルクロスオーバー','3 × 12–15','0–1','60–90秒','','machine'],
+   ['クローズグリップベンチプレス','4 × 8–12','1–2','90秒','三頭','bb'],
+   ['ローププッシュダウン','3 × 12–15','0–1','60秒','三頭','machine'],
+   ['クランチ','3 × 15–20','0–1','60秒','腹','bw']]},
+ {key:'back',label:'背中',en:'BACK',color:C.back,weekday:2,focus:'背中(自重+BB+スミス+DB+マシン+ISO) ・ 二頭(DB)',ex:[
+   ['懸垂(チンニング)','4 × 6–10','1–2','2分','','bw'],
+   ['バーベルロウ','4 × 6–10','1–2','2分','','bb'],
+   ['スミスロウ','3 × 8–12','1–2','90秒','','smith'],
+   ['ワンハンドダンベルロウ','3 × 10–12','1–2','90秒','','db'],
+   ['ラットプルダウン','3 × 10–12','0–1','90秒','','machine'],
+   ['マシンロウ','3 × 12–15','0–1','60秒','','iso'],
+   ['ハンマーカール','3 × 10–12','0–1','60秒','二頭','db']]},
+ {key:'delts',label:'肩',en:'SHOULDERS',color:C.delts,weekday:4,focus:'肩(BB+DB+スミス+マシン+ISO) ・ 僧帽(BB)',note:'胸(月)から中1日空き。前部三角筋・三頭は回復済み。まだ痛むならプレスを3セットに減らしサイド/リアレイズ優先。',ex:[
+   ['バーベルオーバーヘッドプレス','4 × 6–10','1–2','2分','','bb'],
+   ['ダンベルショルダープレス','3 × 10–12','1–2','90秒','','db'],
+   ['スミスショルダープレス','3 × 8–12','1–2','90秒','','smith'],
+   ['ダンベルサイドレイズ','4 × 12–20','0–1','60秒','','db'],
+   ['ケーブルサイドレイズ','3 × 15–20','0–1','45–60秒','','machine'],
+   ['リアデルトフライ(マシン)','3 × 15–20','0–1','60秒','','iso'],
+   ['フェイスプル','3 × 15–20','0–1','60秒','','machine'],
+   ['バーベルシュラッグ','3 × 10–15','0–1','60秒','僧帽','bb']]},
+ {key:'legs',label:'脚',en:'LEGS',color:C.legs,weekday:5,focus:'四頭(BB+スミス+マシン+ISO) ・ ハム(DB+ISO) ・ 臀部(BB) ・ カーフ(ISO)',note:'最も筋肉痛が出やすい日。スクワット・RDLは新規導入時は初回を軽めに。',ex:[
+   ['バーベルスクワット','4 × 5–8','1–2','2–3分','','bb'],
+   ['スミスハックスクワット','3 × 10–12','1–2','2分','','smith'],
+   ['レッグプレス','3 × 10–12','1–2','2分','','machine'],
+   ['レッグエクステンション','3 × 12–15','0–1','60–90秒','','iso'],
+   ['ダンベルルーマニアンデッドリフト','4 × 8–10','1–2','2分','','db'],
+   ['ライイングレッグカール','3 × 10–12','0–1','90秒','','iso'],
+   ['バーベルヒップスラスト','3 × 10–12','1–2','90秒','臀部','bb'],
+   ['シーテッドカーフレイズ','3 × 12–15','0–1','60秒','カーフ','iso']]},
+ {key:'arms',label:'腕',en:'ARMS',color:C.arms,weekday:6,focus:'二頭(BB+DB+ISO+マシン) ・ 三頭(BB+DB+マシン+ISO)',note:'翌日は休み。次週の胸まで三頭を回復させる配置。',ex:[
+   ['バーベルカール','4 × 6–10','1–2','90秒','二頭','bb'],
+   ['インクラインダンベルカール','3 × 10–12','0–1','60秒','二頭','db'],
+   ['プリーチャーカールマシン','3 × 12–15','0–1','60秒','二頭','iso'],
+   ['ケーブルカール','3 × 12–15','0–1','60秒','二頭','machine'],
+   ['クローズグリップベンチプレス','4 × 6–10','1–2','90秒','三頭','bb'],
+   ['ダンベルオーバーヘッドエクステンション','3 × 10–12','1–2','60秒','三頭','db'],
+   ['ローププッシュダウン','3 × 12–15','0–1','45–60秒','三頭','machine'],
+   ['トライセプスエクステンションマシン','3 × 12–15','0–1','60秒','三頭','iso']]},
 ];
 const WEEKDISP=[['月','胸',1],['火','背中',2],['水','休',0],['木','肩',4],['金','脚',5],['土','腕',6],['日','休',0]];
 const WMAP={1:'chest',2:'back',4:'delts',5:'legs',6:'arms'};
@@ -450,9 +469,14 @@ function renderTimer(){
     <div class="big">${mmss(tEl)}</div>
     <div class="pv" style="text-align:center;margin-bottom:14px;${over?'color:var(--up)':''}">${over?`アラート経過 +${mmss(tEl-tAlert)}`:`アラートまで ${mmss(tAlert-tEl)}`}</div>
     <div class="saverow"><button class="btn" onclick="tToggle()">${tRun?'一時停止':'スタート'}</button><button class="btn g" onclick="tReset()">リセット</button></div>
-    <div class="pv" style="margin:16px 0 6px;text-align:center">アラート時間: ${mmss(tAlert)}</div>
-    <div style="display:flex;gap:8px;justify-content:center;margin-bottom:8px"><button class="sb" style="width:64px" onclick="tAdj(-15)">−15s</button><button class="sb" style="width:64px" onclick="tAdj(15)">＋15s</button></div>
-    <div style="text-align:center">${[60,90,120,180].map(p=>`<span class="pill ${tAlert===p?'on':''}" onclick="tPreset(${p})">${p}s</span>`).join('')}</div>
+    <div class="pv" style="margin:16px 0 8px;text-align:center">アラート時間: ${mmss(tAlert)}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:10px">
+      <button onclick="tAdj(-30)" style="height:48px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);font-size:13px;font-weight:800">−30s</button>
+      <button onclick="tAdj(-15)" style="height:48px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);font-size:13px;font-weight:800">−15s</button>
+      <button onclick="tAdj(15)" style="height:48px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);font-size:13px;font-weight:800">＋15s</button>
+      <button onclick="tAdj(30)" style="height:48px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);font-size:13px;font-weight:800">＋30s</button>
+    </div>
+    <div style="display:flex;justify-content:center;flex-wrap:wrap;gap:6px">${[60,90,120,180].map(p=>`<span class="pill ${tAlert===p?'on':''}" onclick="tPreset(${p})">${p}s</span>`).join('')}</div>
     <button class="btn g" style="width:100%;margin-top:14px" onclick="closeSheet()">閉じる</button></div>`;
 }
 function tToggle(){tRun=!tRun;if(tRun){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();}catch(e){}
