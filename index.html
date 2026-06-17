@@ -222,6 +222,7 @@ const todayKey=WMAP[todayWd]||null;
 let tab='workout';
 let activeDay=todayKey||'chest';
 const expanded=new Set();
+let activeExState=null;
 let hview='date'; let hpart=todayKey||'chest'; const expandedH=new Set();
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1700);}
 
@@ -229,7 +230,7 @@ function toast(m){const t=document.getElementById('toast');t.textContent=m;t.cla
 const NAV=[['workout','🏋️','ワーク'],['history','📅','履歴'],['weight','⚖️','体重'],['info','ℹ️','概要']];
 function buildNav(){document.getElementById('nav').innerHTML=NAV.map(([k,i,l])=>
   `<button class="${tab===k?'on':''}" onclick="setTab('${k}')"><span class="ic">${i}</span><span class="lb">${l}</span></button>`).join('');}
-function setTab(t){tab=t;expanded.clear();buildNav();render();window.scrollTo(0,0);}
+function setTab(t){tab=t;activeExState=null;expanded.clear();buildNav();render();window.scrollTo(0,0);}
 
 function render(){
   document.getElementById('fab').style.display=tab==='workout'?'block':'none';
@@ -254,68 +255,111 @@ function renderWorkout(){
   day.ex.forEach((e,i)=>h+=card(day,e,i));
   if(!day.ex.length)h+=`<p style="color:var(--muted2);text-align:center;padding:24px 0">種目がありません。「✎ 編集」から追加してください。</p>`;
   document.getElementById('main').innerHTML=h;
-  day.ex.forEach((e,i)=>recalc(day.key+'|'+i));
 }
-function selDay(k){activeDay=k;expanded.clear();render();window.scrollTo(0,0);}
+function selDay(k){activeDay=k;activeExState=null;expanded.clear();render();window.scrollTo(0,0);}
 
 function card(day,e,idx){
-  const [name,sr,rir,rest,tagv,eq]=e, n=setCount(sr);
-  const prev=prevSession(day.key,name), te=todaySession(day.key,name);
-  const pVol=prev?vol(prev.sets):0, open=expanded.has(idx);
-  let rows='';
-  for(let i=0;i<n;i++){
-    const pv=prev&&prev.sets[i]?prev.sets[i]:null, cv=te&&te.sets[i]?te.sets[i]:null;
-    const step=EQ_STEP[eq]??2.5;
-    rows+=`<div class="srow"><div class="stop"><span class="sn">SET ${i+1}</span>
-      <span class="pv">前回: ${pv?`${fmtW(pv.w)}kg × ${pv.r??'–'}回`:'記録なし'}</span></div>
-      <div class="ins"><span class="u">重量</span>
-        <button class="sb" onclick="adj('${day.key}',${idx},${i},'w',${-step})">−</button>
-        <input id="w-${day.key}-${idx}-${i}" inputmode="decimal" value="${cv&&cv.w!=null?fmtW(cv.w):''}" placeholder="${pv&&pv.w!=null?fmtW(pv.w):'kg'}" oninput="recalc('${day.key}|${idx}')">
-        <button class="sb" onclick="adj('${day.key}',${idx},${i},'w',${step})">＋</button><span class="si">kg(±${step})</span></div>
-      <div class="ins"><span class="u">回数</span>
-        <button class="sb" onclick="adj('${day.key}',${idx},${i},'r',-1)">−</button>
-        <input id="r-${day.key}-${idx}-${i}" inputmode="numeric" value="${cv&&cv.r!=null?cv.r:''}" placeholder="${pv&&pv.r!=null?pv.r:'回'}" oninput="recalc('${day.key}|${idx}')">
-        <button class="sb" onclick="adj('${day.key}',${idx},${i},'r',1)">＋</button><span class="si">回(±1)</span></div></div>`;
+  const[name,sr,rir,rest,tagv,eq]=e,n=setCount(sr);
+  const prev=prevSession(day.key,name),te=todaySession(day.key,name);
+  const step=EQ_STEP[eq]??2.5;
+  const isActive=activeExState&&activeExState.dk===day.key&&activeExState.idx===idx;
+  if(isActive)return activeCard(day,e,idx,prev,n,step);
+  if(te){
+    const sum=te.sets.filter(s=>s.w!=null||s.r!=null).map((s,i)=>`<span class="chip"><span class="k">SET${i+1}</span>${s.w!=null?fmtW(s.w)+'kg':'–'}×${s.r!=null?s.r+'回':'–'}</span>`).join('');
+    return `<div class="ex" style="border-left-color:var(--up)">
+      <div class="head"><span class="name">${esc(name)}</span>${EQ_LABEL[eq]?`<span class="badge">${EQ_LABEL[eq]}</span>`:''}${tagv?`<span class="tag">${tagv}</span>`:''}<span class="saved" style="margin-left:auto">✓ 完了</span></div>
+      <div style="padding:0 13px 12px"><div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">${sum||'<span class="pv">データなし</span>'}</div>
+      <div style="display:flex;gap:8px"><button class="btn" style="height:38px;font-size:.82rem" onclick="startEx('${day.key}',${idx})">▶ 再実行</button><button class="btn g" style="height:38px;font-size:.82rem" onclick="clearExNew('${day.key}',${idx})">削除</button></div></div></div>`;
   }
-  return `<div class="ex ${open?'open':''}" data-card="${day.key}|${idx}" data-pvol="${pVol}">
-    <div class="head" onclick="tog(${idx})"><span class="name">${esc(name)}</span>
-      ${EQ_LABEL[eq]?`<span class="badge">${EQ_LABEL[eq]}</span>`:''}${tagv?`<span class="tag">${tagv}</span>`:''}
-      <span class="chev">${open?'▾':'▸'}</span></div>
-    <div class="meta"><span class="chip"><span class="k">SET×REP</span>${sr}</span>
-      <span class="chip rir"><span class="k">RIR</span>${rir}</span><span class="chip"><span class="k">休息</span>${rest}</span>
-      <span class="delta"></span>${te?'<span class="saved">✓ 記録済</span>':''}</div>
-    <div class="log">${rows}<div class="saverow">
-      <button class="btn" onclick="saveEx('${day.key}',${idx})">この種目を保存</button>
-      ${te?`<button class="btn g" onclick="clearEx('${day.key}',${idx})">今日分削除</button>`:''}</div></div></div>`;
+  const prevChips=prev?prev.sets.filter(s=>s.w!=null||s.r!=null).map((s,i)=>`<span class="chip"><span class="k">SET${i+1}</span>${s.w!=null?fmtW(s.w)+'kg':'–'}×${s.r!=null?s.r+'回':'–'}</span>`).join(''):'<span style="color:var(--muted2);font-size:.8rem">前回記録なし</span>';
+  return `<div class="ex">
+    <div class="head"><span class="name">${esc(name)}</span>${EQ_LABEL[eq]?`<span class="badge">${EQ_LABEL[eq]}</span>`:''}${tagv?`<span class="tag">${tagv}</span>`:''}</div>
+    <div class="meta"><span class="chip"><span class="k">SET×REP</span>${sr}</span><span class="chip rir"><span class="k">RIR</span>${rir}</span><span class="chip"><span class="k">休息</span>${rest}</span></div>
+    <div style="padding:0 13px 12px;border-top:1px solid var(--line)">
+      <div style="margin-bottom:10px"><span style="font-size:.62rem;color:var(--muted2);font-weight:700;letter-spacing:.1em">前回 </span><span style="display:inline-flex;flex-wrap:wrap;gap:5px">${prevChips}</span></div>
+      <button class="btn" onclick="startEx('${day.key}',${idx})">▶ Start</button></div></div>`;
 }
-function tog(i){expanded.has(i)?expanded.delete(i):expanded.add(i);renderWorkout();}
-function adj(dk,idx,i,key,d){
-  const el=document.getElementById(`${key}-${dk}-${idx}-${i}`);let v=parseFloat(el.value);
-  if(isNaN(v))v=0; v=key==='w'?Math.max(0,Math.round((v+d)*4)/4):Math.max(0,Math.round(v+d));
-  el.value=key==='w'?fmtW(v):v; recalc(dk+'|'+idx);
+
+function activeCard(day,e,idx,prev,n,step){
+  const[name,sr,rir,rest,tagv,eq]=e,{setIdx,sets}=activeExState,isLast=setIdx>=n-1;
+  const pv=prev&&prev.sets[setIdx]?prev.sets[setIdx]:null;
+  const curSet=sets[setIdx]||{},curW=curSet.w!=null?fmtW(curSet.w):'',curR=curSet.r!=null?String(curSet.r):'';
+  let slist='';
+  for(let i=0;i<n;i++){
+    const s=sets[i]||{},ppv=prev&&prev.sets[i]?prev.sets[i]:null;
+    if(i<setIdx)
+      slist+=`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)"><span style="color:var(--up);font-size:.78rem;font-weight:800;min-width:56px">SET ${i+1} ✓</span><span style="font-size:.9rem;font-weight:700">${s.w!=null?fmtW(s.w)+'kg':'–'} × ${s.r!=null?s.r+'回':'–'}</span></div>`;
+    else if(i===setIdx)
+      slist+=`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)"><span style="color:var(--accent);font-size:.78rem;font-weight:800;min-width:56px">SET ${i+1} ▶</span><span style="font-size:.8rem;color:var(--muted)">入力中</span></div>`;
+    else
+      slist+=`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted2);font-size:.78rem;font-weight:800;min-width:56px">SET ${i+1}</span><span style="font-size:.78rem;color:var(--muted2)">${ppv&&ppv.w!=null?fmtW(ppv.w)+'kg (前回)':'–'}</span></div>`;
+  }
+  return `<div class="ex open" style="border-left-color:var(--accent);border-color:color-mix(in srgb,var(--accent) 55%,var(--line))">
+    <div class="head"><span class="name">${esc(name)}</span>${EQ_LABEL[eq]?`<span class="badge">${EQ_LABEL[eq]}</span>`:''}${tagv?`<span class="tag">${tagv}</span>`:''}<button class="btn g" style="margin-left:auto;height:32px;padding:0 10px;font-size:.76rem" onclick="cancelEx()">✕ 中断</button></div>
+    <div class="log">
+      <div style="background:color-mix(in srgb,var(--accent) 8%,var(--panel2));border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));border-radius:12px;padding:14px;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px">
+          <span style="font-size:2.2rem;font-weight:800;color:var(--accent);line-height:1">SET ${setIdx+1}<span style="font-size:1rem;color:var(--muted);font-weight:600"> / ${n}</span></span>
+          <span class="pv" style="text-align:right;line-height:1.7">前回<br>${pv?`<b style="color:var(--txt);font-size:.9rem">${fmtW(pv.w)}kg × ${pv.r??'–'}回</b>`:'記録なし'}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
+          <div class="ins"><span class="u">重量</span><button class="sb" onclick="aAdj('w',${-step})">−</button><input id="aw" inputmode="decimal" value="${curW}" placeholder="${pv&&pv.w!=null?fmtW(pv.w):'kg'}" style="flex:1;height:58px;font-size:24px;font-weight:800;text-align:center;border-radius:12px;background:var(--bg);border:2px solid var(--accent);color:var(--txt);font-family:inherit"><button class="sb" onclick="aAdj('w',${step})">＋</button><span class="si">kg(±${step})</span></div>
+          <div class="ins"><span class="u">回数</span><button class="sb" onclick="aAdj('r',-1)">−</button><input id="ar" inputmode="numeric" value="${curR}" placeholder="${pv&&pv.r!=null?pv.r:'回'}" style="flex:1;height:58px;font-size:24px;font-weight:800;text-align:center;border-radius:12px;background:var(--bg);border:2px solid var(--accent);color:var(--txt);font-family:inherit"><button class="sb" onclick="aAdj('r',1)">＋</button><span class="si">回(±1)</span></div>
+        </div>
+        <div class="saverow">
+          ${!isLast?`<button class="btn" onclick="nextSet()">Next SET →</button>`:''}
+          <button class="btn${isLast?'':' g'}" ${isLast?'':`style="background:none;border:1px solid var(--up);color:var(--up)"`} onclick="doneEx()">Done ✓</button>
+        </div>
+      </div>
+      <div style="padding:0 2px">${slist}</div>
+    </div>
+  </div>`;
 }
-function recalc(key){
-  const c=document.querySelector(`[data-card="${key}"]`);if(!c)return;
-  const pv=+c.dataset.pvol||0;let v=0,any=false;
-  c.querySelectorAll('.srow').forEach(r=>{const w=parseFloat(r.querySelector('[id^=w-]').value),rep=parseFloat(r.querySelector('[id^=r-]').value);if(!isNaN(w)&&!isNaN(rep)){v+=w*rep;any=true;}});
-  const b=c.querySelector('.delta');
-  if(any&&pv>0){const d=Math.round(v-pv);b.style.display='inline-block';b.className='delta '+(d>0?'up':d<0?'down':'eq');b.textContent=d>0?`▲ 前回比 +${d}kg`:d<0?`▼ 前回比 ${d}kg`:'前回と同じ';}
-  else if(any){b.style.display='inline-block';b.className='delta eq';b.textContent='総量 '+Math.round(v)+'kg';}
-  else b.style.display='none';
-}
-function gatherSets(dk,idx,n){const sets=[];let has=false;for(let i=0;i<n;i++){
-  const we=document.getElementById(`w-${dk}-${idx}-${i}`),re=document.getElementById(`r-${dk}-${idx}-${i}`);
-  const w=we&&we.value!==''?parseFloat(we.value):null,r=re&&re.value!==''?parseInt(re.value):null;
-  if(w!=null||r!=null)has=true;sets.push({w:isNaN(w)?null:w,r:isNaN(r)?null:r});}return{sets,has};}
-function saveEx(dk,idx){
+
+function startEx(dk,idx){
   const day=PROGRAM.find(d=>d.key===dk),e=day.ex[idx],n=setCount(e[1]);
-  const {sets,has}=gatherSets(dk,idx,n);
-  if(!has){toast('入力がありません');return;}
-  const k=exKey(dk,e[0]),hist=LOGS[k]||[],date=todayStr(),li=hist.findIndex(s=>s.date===date),en={date,sets};
-  if(li>=0)hist[li]=en;else hist.push(en);LOGS[k]=hist.slice(-50);saveLogs();toast('記録しました');renderWorkout();
+  const prev=prevSession(dk,e[0]);
+  const sets=Array.from({length:n},(_,i)=>{const pv=prev&&prev.sets[i]?prev.sets[i]:null;return{w:pv&&pv.w!=null?pv.w:null,r:null};});
+  activeExState={dk,idx,setIdx:0,sets};
+  renderWorkout();
+  setTimeout(()=>{const el=document.querySelector('.ex.open');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},60);
 }
-function clearEx(dk,idx){const day=PROGRAM.find(d=>d.key===dk),k=exKey(dk,day.ex[idx][0]),date=todayStr();
-  if(LOGS[k]){LOGS[k]=LOGS[k].filter(s=>s.date!==date);if(!LOGS[k].length)delete LOGS[k];saveLogs();}toast('今日分を削除');renderWorkout();}
+function aAdj(key,d){
+  const el=document.getElementById(key==='w'?'aw':'ar');if(!el)return;
+  let v=parseFloat(el.value);if(isNaN(v))v=0;
+  v=key==='w'?Math.max(0,Math.round((v+d)*4)/4):Math.max(0,Math.round(v+d));
+  el.value=key==='w'?fmtW(v):v;
+}
+function readActive(){
+  const wv=document.getElementById('aw')?.value||'',rv=document.getElementById('ar')?.value||'';
+  const w=wv!==''?parseFloat(wv):null,r=rv!==''?parseInt(rv):null;
+  return{w:isNaN(w)?null:w,r:isNaN(r)?null:r};
+}
+function nextSet(){
+  if(!activeExState)return;
+  const{sets,setIdx}=activeExState,cur=readActive();
+  sets[setIdx]={w:cur.w,r:cur.r};
+  activeExState.setIdx++;
+  renderWorkout();
+  setTimeout(()=>{const el=document.querySelector('.ex.open');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},60);
+}
+function doneEx(){
+  if(!activeExState)return;
+  const{sets,setIdx,dk,idx}=activeExState,cur=readActive();
+  sets[setIdx]={w:cur.w,r:cur.r};
+  if(!sets.some(s=>s.w!=null||s.r!=null)){toast('入力がありません');return;}
+  const day=PROGRAM.find(d=>d.key===dk),e=day.ex[idx];
+  const k=exKey(dk,e[0]),hist=LOGS[k]||[],date=todayStr(),li=hist.findIndex(s=>s.date===date);
+  const en={date,sets};if(li>=0)hist[li]=en;else hist.push(en);
+  LOGS[k]=hist.slice(-50);saveLogs();
+  activeExState=null;toast('記録しました ✓');renderWorkout();
+}
+function cancelEx(){activeExState=null;renderWorkout();}
+function clearExNew(dk,idx){
+  const day=PROGRAM.find(d=>d.key===dk),k=exKey(dk,day.ex[idx][0]),date=todayStr();
+  if(LOGS[k]){LOGS[k]=LOGS[k].filter(s=>s.date!==date);if(!LOGS[k].length)delete LOGS[k];saveLogs();}
+  toast('今日分を削除');renderWorkout();
+}
 
 /* ====== メニュー編集 ====== */
 let edit={ex:null,view:'list',idx:-1,m:null,eq:null,name:'',custom:false,sets:3,reps:'8–12',rir:'1–2',rest:'90秒'};
