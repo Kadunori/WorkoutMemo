@@ -39,7 +39,6 @@
   .editbtn{margin-left:auto;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:8px 14px;color:var(--txt);font-weight:700;font-size:.82rem;}
   .focus{color:var(--muted);font-size:.8rem;margin-top:4px;}
   .prog{color:var(--muted);font-size:.8rem;margin:6px 0 14px;}
-  .note{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:12px;padding:11px 13px;color:var(--muted);font-size:.82rem;margin-bottom:12px;}
   .ex{border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:14px;background:var(--panel);margin-bottom:10px;overflow:hidden;}
   .ex .head{display:flex;align-items:center;gap:8px;padding:13px;}
   .ex .name{flex:1;font-weight:700;font-size:.98rem;}
@@ -337,7 +336,6 @@ function renderWorkout(){
     <button class="editbtn" onclick="openEditor()">✎ 編集</button></div>
     <div class="focus">${day.ex.length}種目 ・ 合計 ${totalSets(day.ex)}セット</div>
     <div class="prog">記録済み ${logged}/${day.ex.length} 種目</div>`;
-  if(day.note)h+=`<div class="note">⚠️ ${day.note}</div>`;
   day.ex.forEach((e,i)=>h+=card(day,e,i));
   if(!day.ex.length)h+=`<p style="color:var(--muted2);text-align:center;padding:24px 0">種目がありません。「✎ 編集」から追加してください。</p>`;
   document.getElementById('main').innerHTML=h;
