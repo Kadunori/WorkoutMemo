@@ -23,7 +23,6 @@
   html,body{margin:0;background:var(--bg);color:var(--txt);overscroll-behavior-y:none;}
   body{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP",sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased;}
   .app{max-width:520px;margin:0 auto;padding-bottom:calc(70px + env(safe-area-inset-bottom));}
-  header{padding:14px 18px 10px;padding-top:calc(14px + env(safe-area-inset-top));border-bottom:1px solid var(--line);background:linear-gradient(180deg,#101218,#0d0e11);}
   .eyebrow{font-size:.62rem;letter-spacing:.2em;color:var(--muted);font-weight:700;}
   h1{margin:.1em 0 0;font-size:1.25rem;font-weight:800;}
   .tabs{position:sticky;top:0;z-index:20;display:flex;gap:8px;overflow-x:auto;padding:10px 18px;background:rgba(13,14,17,.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);scrollbar-width:none;}
@@ -109,8 +108,7 @@
 </head>
 <body>
 <div class="app">
-  <header><div class="eyebrow">5-DAY SPLIT ・ TRAINING LOG</div><h1>5分割 筋トレ記録</h1></header>
-  <div id="tabsWrap"></div>
+<div id="tabsWrap"></div>
   <main id="main">読み込み中…</main>
 </div>
 <button class="fab" id="fab" onclick="openTimer()">⏱</button>
