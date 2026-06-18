@@ -752,7 +752,7 @@ function histDate(){
 }
 
 function histPart(){
-  let h=`<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:10px">${PROGRAM.map(d=>`<span class="pill ${hpart===d.key?'on':''}" style="margin:0;flex:0 0 auto" onclick="setHPart('${d.key}')">${d.label}</span>`).join('')}</div>`;
+  let h=`<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:10px">${PROGRAM.map(d=>{const on=hpart===d.key;return`<span class="pill ${on?'on':''}" style="margin:0;flex:0 0 auto;${on?`background:${d.color};border-color:${d.color};color:#0d0e11`:'font-weight:700'}" onclick="setHPart('${d.key}')">${d.label}</span>`}).join('')}</div>`;
   const prefix=hpart+'|',map={};
   Object.keys(LOGS).filter(k=>k.indexOf(prefix)===0).forEach(k=>{const name=k.slice(prefix.length);
     LOGS[k].forEach(s=>{(map[s.date]=map[s.date]||[]).push({name,sets:s.sets});});});
@@ -771,7 +771,7 @@ function histPart(){
 
 function renderHistory(){
   document.getElementById('tabsWrap').innerHTML='';
-  document.documentElement.style.setProperty('--accent','var(--accent)');
+  document.documentElement.style.setProperty('--accent','#f0a23b');
   const seg=`<div style="display:flex;gap:8px;margin-bottom:14px">
     <button class="pill ${hview==='date'?'on':''}" style="flex:1;height:42px;margin:0;border:1px solid ${hview==='date'?'var(--accent)':'var(--line)'}" onclick="setHView('date')">日付ごと</button>
     <button class="pill ${hview==='part'?'on':''}" style="flex:1;height:42px;margin:0;border:1px solid ${hview==='part'?'var(--accent)':'var(--line)'}" onclick="setHView('part')">部位ごと</button></div>`;
