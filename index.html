@@ -272,8 +272,7 @@ const DEFAULT=[
    ['ローププッシュダウン','3 × 12–15','0–1','45–60秒','三頭','cable'],
    ['トライセプスエクステンションマシン','3 × 12–15','0–1','60秒','三頭','machine']]},
 ];
-const WEEKDISP=[['月','胸',1],['火','背中',2],['水','休',0],['木','肩',4],['金','脚',5],['土','腕',6],['日','休',0]];
-const WMAP={1:'chest',2:'back',4:'delts',5:'legs',6:'arms'};
+const DEFAULT_SCHEDULE=['chest','back',null,'delts','legs','arms',null];
 
 /* ====== ユーティリティ ====== */
 const exKey=(d,n)=>d+'|'+n;
@@ -288,26 +287,31 @@ function todaySession(d,n){const h=LOGS[exKey(d,n)]||[],t=todayStr();return h.fi
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 /* ====== ストレージ(localStorage) ====== */
-let PROGRAM=[], LOGS={}, BW=[], STORAGE_OK=false;
+let PROGRAM=[], LOGS={}, BW=[], BIG3={bench:[],squat:[],deadlift:[]}, SCHEDULE=[...DEFAULT_SCHEDULE], STORAGE_OK=false;
 function initStore(){
   try{localStorage.setItem('__t','1');localStorage.removeItem('__t');STORAGE_OK=true;
     PROGRAM=JSON.parse(localStorage.getItem('gym-program-v1')||'null')||clone(DEFAULT);
     LOGS=JSON.parse(localStorage.getItem('gym-logs-v1')||'{}');
     BW=JSON.parse(localStorage.getItem('gym-bw-v1')||'[]');
+    BIG3=JSON.parse(localStorage.getItem('gym-big3-v1')||'null')||{bench:[],squat:[],deadlift:[]};
+    SCHEDULE=JSON.parse(localStorage.getItem('gym-schedule-v1')||'null')||[...DEFAULT_SCHEDULE];
   }catch(e){STORAGE_OK=false;PROGRAM=clone(DEFAULT);}
 }
 const saveProgram=()=>{try{localStorage.setItem('gym-program-v1',JSON.stringify(PROGRAM));}catch(e){}};
 const saveLogs=()=>{try{localStorage.setItem('gym-logs-v1',JSON.stringify(LOGS));}catch(e){}};
 const saveBW=()=>{try{localStorage.setItem('gym-bw-v1',JSON.stringify(BW));}catch(e){}};
+const saveBIG3=()=>{try{localStorage.setItem('gym-big3-v1',JSON.stringify(BIG3));}catch(e){}};
+const saveSchedule=()=>{try{localStorage.setItem('gym-schedule-v1',JSON.stringify(SCHEDULE));}catch(e){}};
 
 /* ====== 状態 ====== */
 const todayWd=new Date().getDay();
-const todayKey=WMAP[todayWd]||null;
+let todayKey=null; // computed after initStore
 let tab='workout';
-let activeDay=todayKey||'chest';
+let activeDay='chest'; // updated after initStore
 const expanded=new Set();
 let activeExState=null;
-let hview='date'; let hpart=todayKey||'chest'; const expandedH=new Set();
+let hview='date'; let hpart='chest'; const expandedH=new Set();
+let tempSchedule=null;
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1700);}
 
 /* ====== ナビ・タブ ====== */
@@ -543,34 +547,108 @@ function addBw(){const v=parseFloat(document.getElementById('bwin').value);if(is
   const date=todayStr();BW=[...BW.filter(x=>x.date!==date),{date,kg:Math.round(v*10)/10}];saveBW();renderWeight();toast('体重を記録');}
 
 /* ====== 概要 ====== */
+function getWeekDisp(){
+  const dn=['月','火','水','木','金','土','日'];
+  return SCHEDULE.map((key,i)=>{
+    const wd=i===6?0:i+1;
+    const label=key?(PROGRAM.find(d=>d.key===key)||{label:key}).label:'休';
+    return[dn[i],label,wd,!key];
+  });
+}
+const BIG3_KEYS=['bench','squat','deadlift'];
+const BIG3_LABELS={bench:'ベンチプレス',squat:'スクワット',deadlift:'デッドリフト'};
 function renderInfo(){
   document.getElementById('tabsWrap').innerHTML='';
   document.documentElement.style.setProperty('--accent','var(--delts)');
-  const week=WEEKDISP.map(([w,n,wd])=>`<div class="wd ${n==='休'?'rest':''} ${wd===todayWd&&wd!==0?'today':''}"><div class="w">${w}</div><div class="n">${n}</div></div>`).join('');
-  const stmsg=STORAGE_OK?'記録・体重・メニューはこの端末に保存されます。ホーム画面に追加すると確実に残ります。':'※保存が無効(プライベートモード等)。画面を開いている間のみ保持されます。';
+  const wDisp=getWeekDisp();
+  const week=wDisp.map(([w,n,wd,isRest])=>`<div class="wd ${isRest?'rest':''} ${wd===todayWd&&!isRest?'today':''}"><div class="w">${w}</div><div class="n">${n}</div></div>`).join('');
+  const stmsg=STORAGE_OK?'記録・体重・メニューはこの端末に保存されます。':'※保存が無効(プライベートモード等)。';
+  let big3h='';
+  BIG3_KEYS.forEach((k,idx)=>{
+    const recs=BIG3[k]||[];
+    const last=recs[recs.length-1];
+    const isLast=idx===BIG3_KEYS.length-1;
+    big3h+=`<div style="${isLast?'':'padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--line)'}">
+      <div style="font-weight:700;font-size:1rem;margin-bottom:6px">${BIG3_LABELS[k]}</div>
+      ${last?`<div class="pv" style="margin-bottom:8px">最新: <strong>${fmtW(last.kg)} kg</strong> <span style="color:var(--muted2)">(${last.date})</span></div>`:'<div class="pv" style="margin-bottom:8px;color:var(--muted2)">未記録</div>'}
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="number" id="big3-${k}" value="${last?last.kg:''}" placeholder="kg" step="0.5" inputmode="decimal"
+          style="width:86px;height:46px;text-align:center;border-radius:10px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);font-size:18px;font-weight:700">
+        <span style="color:var(--muted2)">kg</span>
+        <button class="btn" style="height:46px;padding:0 18px" onclick="addBig3('${k}')">Done</button>
+        ${recs.length>=1?`<button class="btn g" style="height:46px;padding:0 14px" onclick="showBig3History('${k}')">History</button>`:''}
+      </div></div>`;
+  });
   document.getElementById('main').innerHTML=`
-   <div class="eyebrow" style="color:var(--accent)">OVERVIEW</div><h2 style="margin:.05em 0 14px;font-size:1.5rem;font-weight:800">概要・使い方</h2>
-   <div class="card"><h3>使い方</h3><ol class="ol">
-     <li>部位タブを選ぶ(今日の曜日の部位を自動選択)。</li>
-     <li>種目をタップして開く。</li>
-     <li>−/＋か直接入力で重量・回数をメモ(DB±1 / BB±2.5kg等)。</li>
-     <li>「この種目を保存」で記録。前回比が出る。</li>
-     <li>⏱で休憩タイマー(アラートで音＋点滅)。</li>
-     <li>「✎ 編集」で部位×加重方法から種目を追加・並べ替え。</li>
-     <li>体重タブで体重を記録し推移を確認。</li>
-     <li>「履歴」タブで、日付ごと／部位ごとに実施記録を確認。</li>
-   </ol><p class="pv" style="margin-top:10px">${stmsg}</p></div>
-   <div class="card"><h3>📅 週スケジュール</h3><div class="week">${week}</div>
-     <p>順番は 胸→背中→肩→脚→腕。共働筋(三頭/二頭/前部三角筋)が連日痛むのを避ける配置。</p></div>
-   <div class="card"><h3>💪 筋肉痛との付き合い方</h3><ol class="ol">
-     <li>筋肉痛＝成長ではない。回復はパフォーマンスで判断。</li>
-     <li>DOMSは24〜72hでピーク、7日で消失。</li>
-     <li>強い痛みが残る日は重量/セットを落とす。</li>
-     <li>新種目は初回を軽め(RIR2〜3)に。2〜3回目で激減。</li>
-     <li>回復: 慣らし＞睡眠＞タンパク質(体重×1.6〜2.2g)＞軽い有酸素。</li></ol></div>
+   <div class="eyebrow" style="color:var(--accent)">OVERVIEW</div><h2 style="margin:.05em 0 14px;font-size:1.5rem;font-weight:800">概要</h2>
+   <div class="card">
+     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+       <h3 style="margin:0">📅 週スケジュール</h3>
+       <button class="btn g" style="height:36px;padding:0 14px;font-size:.82rem" onclick="openScheduleEditor()">Edit</button>
+     </div>
+     <div class="week">${week}</div></div>
+   <div class="card"><h3>🏆 BIG3 MAX</h3>${big3h}</div>
    <div class="card"><h3>🗑 データ管理</h3>
+     <p class="pv" style="margin-bottom:10px">${stmsg}</p>
      <button class="btn g" style="width:100%;margin-bottom:8px" onclick="exportCsv()">記録をCSVで書き出す</button>
      <button class="danger" id="delAll" onclick="delAll(this)">全データを削除</button></div>`;
+}
+function addBig3(k){
+  const inp=document.getElementById('big3-'+k);
+  const v=parseFloat(inp.value);
+  if(isNaN(v)||v<=0){toast('重量を入力してください');return;}
+  const date=todayStr();
+  BIG3[k]=[...(BIG3[k]||[]).filter(x=>x.date!==date),{date,kg:Math.round(v*10)/10}];
+  BIG3[k].sort((a,b)=>a.date.localeCompare(b.date));
+  saveBIG3();toast('記録しました ✓');renderInfo();
+}
+function showBig3History(k){
+  const data=[...(BIG3[k]||[])].sort((a,b)=>a.date.localeCompare(b.date));
+  if(!data.length){toast('記録がありません');return;}
+  const recent=data.slice(-20);
+  let chart='<p style="color:var(--muted2);text-align:center;padding:14px 0">2回以上記録するとグラフが出ます。</p>';
+  if(recent.length>=2){
+    const W=Math.min(340,(document.querySelector('.app')||{clientWidth:340}).clientWidth-50),H=150;
+    const ks=recent.map(d=>d.kg),mn=Math.min(...ks),mx=Math.max(...ks);
+    const pad=(mx-mn)*0.15||5,lo=mn-pad,hi=mx+pad;
+    const X=i=>15+i/(recent.length-1)*W, Y=kg=>10+(1-(kg-lo)/(hi-lo))*(H-30);
+    const pts=recent.map((d,i)=>`${X(i)},${Y(d.kg)}`).join(' ');
+    chart=`<svg width="${W+30}" height="${H}" style="display:block;width:100%;overflow:visible">
+      <line x1="15" y1="${Y(mx)}" x2="${W+15}" y2="${Y(mx)}" stroke="var(--line)" stroke-dasharray="3 4"/>
+      <line x1="15" y1="${Y(mn)}" x2="${W+15}" y2="${Y(mn)}" stroke="var(--line)" stroke-dasharray="3 4"/>
+      <text x="18" y="${Y(mx)-4}" fill="var(--muted2)" font-size="10">${mx}kg</text>
+      <text x="18" y="${Y(mn)+12}" fill="var(--muted2)" font-size="10">${mn}kg</text>
+      <polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>
+      ${recent.map((d,i)=>`<circle cx="${X(i)}" cy="${Y(d.kg)}" r="${i===recent.length-1?4:2.5}" fill="var(--accent)"/>`).join('')}</svg>`;
+  }
+  const rows=[...data].reverse().slice(0,30).map(r=>`<div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line)"><span class="pv">${r.date}</span><span style="font-weight:700">${fmtW(r.kg)} kg</span></div>`).join('');
+  document.getElementById('sheet').innerHTML=`<h3 style="margin:0 0 14px">${BIG3_LABELS[k]} MAX推移</h3>
+    <div class="card" style="margin-bottom:12px;overflow:hidden">${chart}</div>
+    <div style="max-height:260px;overflow-y:auto">${rows||'<p style="color:var(--muted2)">記録がありません</p>'}</div>
+    <button class="btn g" style="width:100%;margin-top:14px" onclick="closeSheet()">閉じる</button>`;
+  showSheet();
+}
+function openScheduleEditor(){tempSchedule=[...SCHEDULE];renderScheduleEditor();showSheet();}
+function renderScheduleEditor(){
+  const dn=['月','火','水','木','金','土','日'];
+  const opts=[[null,'休'],...PROGRAM.map(d=>[d.key,d.label])];
+  let h='<h3 style="margin:0 0 16px">週スケジュール編集</h3>';
+  dn.forEach((day,i)=>{
+    const cur=tempSchedule[i]??null;
+    h+=`<div style="display:flex;align-items:center;gap:6px;padding:10px 0;border-bottom:1px solid var(--line);flex-wrap:wrap">
+      <span style="font-weight:800;font-size:1rem;width:26px;flex-shrink:0">${day}</span>
+      ${opts.map(([key,label])=>`<span class="pill ${cur===key?'on':''}" style="margin:0;height:34px;padding:0 12px;font-size:.82rem" onclick="scheduleSet(${i},${key===null?'null':"'"+key+"'"})"> ${label}</span>`).join('')}
+    </div>`;
+  });
+  h+=`<div class="saverow" style="margin-top:16px"><button class="btn" onclick="scheduleCommit()">保存</button><button class="btn g" onclick="closeSheet()">取消</button></div>`;
+  document.getElementById('sheet').innerHTML=h;
+}
+function scheduleSet(i,key){tempSchedule[i]=key;renderScheduleEditor();}
+function scheduleCommit(){
+  SCHEDULE=[...tempSchedule];
+  saveSchedule();
+  todayKey=SCHEDULE[todayWd===0?6:todayWd-1]||null;
+  closeSheet();renderInfo();toast('スケジュールを保存');
 }
 function exportCsv(){
   const rows=[['日付','部位','種目','セット','重量kg','回数']];
@@ -583,7 +661,7 @@ function exportCsv(){
 }
 let delArm=false;
 function delAll(btn){if(!delArm){delArm=true;btn.textContent='もう一度タップで全削除';setTimeout(()=>{delArm=false;btn.textContent='全データを削除';},3000);return;}
-  LOGS={};BW=[];PROGRAM=clone(DEFAULT);saveLogs();saveBW();saveProgram();delArm=false;activeDay=todayKey||'chest';renderInfo();toast('全データを削除しました');}
+  LOGS={};BW=[];BIG3={bench:[],squat:[],deadlift:[]};PROGRAM=clone(DEFAULT);saveLogs();saveBW();saveBIG3();saveProgram();delArm=false;activeDay=todayKey||'chest';renderInfo();toast('全データを削除しました');}
 
 /* ====== 休憩タイマー(ストップウォッチ＋アラート / iOSは音＋点滅) ====== */
 let tEl=0,tRun=false,tAlert=90,tFired=false,tInt=null,actx=null;
@@ -702,7 +780,11 @@ function renderHistory(){
 }
 
 /* ====== 起動 ====== */
-initStore();buildNav();render();
+initStore();
+todayKey=SCHEDULE[todayWd===0?6:todayWd-1]||null;
+activeDay=todayKey||PROGRAM[0]?.key||'chest';
+hpart=todayKey||PROGRAM[0]?.key||'chest';
+buildNav();render();
 </script>
 </body>
 </html>
