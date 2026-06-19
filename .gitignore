@@ -1,0 +1,20 @@
+# 環境変数（機密情報を含む）
+.env
+.env.local
+
+# Go ビルド成果物
+services/*/bin/
+services/*/*.exe
+
+# go.sum は go mod tidy で生成するためコミットしない
+# ※ チーム開発の場合はコミットするのが一般的
+# services/*/go.sum
+
+# Docker
+.docker/
+
+# エディタ・OS
+.DS_Store
+.idea/
+.vscode/
+*.swp

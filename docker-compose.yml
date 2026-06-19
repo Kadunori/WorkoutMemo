@@ -1,0 +1,176 @@
+version: "3.9"
+
+# ローカル開発用 docker-compose
+# K8s に移行する前の動作確認に使用する
+# 使い方: make dev-up
+
+services:
+  # ===== インフラ =====
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: workout
+      POSTGRES_PASSWORD: devpassword
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./k8s/postgres/init-configmap.yaml:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "workout"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # ===== マイグレーション（起動時に一度だけ実行） =====
+  migrate-auth:
+    image: migrate/migrate:v4.17.1
+    command: ["-path=/migrations", "-database=${AUTH_DATABASE_URL}", "up"]
+    volumes:
+      - ./services/auth-service/migrations:/migrations:ro
+    environment:
+      AUTH_DATABASE_URL: "postgres://workout:devpassword@postgres:5432/auth_db?sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  migrate-workout:
+    image: migrate/migrate:v4.17.1
+    command: ["-path=/migrations", "-database=${WORKOUT_DATABASE_URL}", "up"]
+    volumes:
+      - ./services/workout-service/migrations:/migrations:ro
+    environment:
+      WORKOUT_DATABASE_URL: "postgres://workout:devpassword@postgres:5432/workout_db?sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  migrate-user:
+    image: migrate/migrate:v4.17.1
+    command: ["-path=/migrations", "-database=${USER_DATABASE_URL}", "up"]
+    volumes:
+      - ./services/user-service/migrations:/migrations:ro
+    environment:
+      USER_DATABASE_URL: "postgres://workout:devpassword@postgres:5432/user_db?sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  migrate-menu:
+    image: migrate/migrate:v4.17.1
+    command: ["-path=/migrations", "-database=${MENU_DATABASE_URL}", "up"]
+    volumes:
+      - ./services/menu-service/migrations:/migrations:ro
+    environment:
+      MENU_DATABASE_URL: "postgres://workout:devpassword@postgres:5432/menu_db?sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ===== バックエンドサービス =====
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8080"
+    environment:
+      PORT: "8080"
+      DATABASE_URL: "postgres://workout:devpassword@postgres:5432/auth_db?sslmode=disable"
+      JWT_SECRET: "dev-jwt-secret-change-in-production"
+    depends_on:
+      migrate-auth:
+        condition: service_completed_successfully
+
+  workout-service:
+    build:
+      context: ./services/workout-service
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8080"
+    environment:
+      PORT: "8080"
+      DATABASE_URL: "postgres://workout:devpassword@postgres:5432/workout_db?sslmode=disable"
+      JWT_SECRET: "dev-jwt-secret-change-in-production"
+    depends_on:
+      migrate-workout:
+        condition: service_completed_successfully
+
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    ports:
+      - "8083:8080"
+    environment:
+      PORT: "8080"
+      DATABASE_URL: "postgres://workout:devpassword@postgres:5432/user_db?sslmode=disable"
+      JWT_SECRET: "dev-jwt-secret-change-in-production"
+    depends_on:
+      migrate-user:
+        condition: service_completed_successfully
+
+  menu-service:
+    build:
+      context: ./services/menu-service
+      dockerfile: Dockerfile
+    ports:
+      - "8084:8080"
+    environment:
+      PORT: "8080"
+      DATABASE_URL: "postgres://workout:devpassword@postgres:5432/menu_db?sslmode=disable"
+      JWT_SECRET: "dev-jwt-secret-change-in-production"
+    depends_on:
+      migrate-menu:
+        condition: service_completed_successfully
+
+  export-service:
+    build:
+      context: ./services/export-service
+      dockerfile: Dockerfile
+    ports:
+      - "8085:8080"
+    environment:
+      PORT: "8080"
+      JWT_SECRET: "dev-jwt-secret-change-in-production"
+      WORKOUT_SERVICE_URL: "http://workout-service:8080"
+      USER_SERVICE_URL: "http://user-service:8080"
+    depends_on:
+      - workout-service
+      - user-service
+
+  # ===== フロントエンド =====
+  frontend:
+    image: nginx:1.27-alpine
+    ports:
+      - "3000:80"
+    volumes:
+      - ./index.html:/usr/share/nginx/html/index.html:ro
+      - ./icon.png:/usr/share/nginx/html/icon.png:ro
+
+  # ===== 逆プロキシ (ローカル API ゲートウェイ) =====
+  nginx-proxy:
+    image: nginx:1.27-alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx-dev.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - frontend
+      - auth-service
+      - workout-service
+      - user-service
+      - menu-service
+      - export-service
+
+volumes:
+  postgres_data:
+  redis_data:

@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: workout-frontend
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: workout-backend
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: workout-data
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: workout-monitoring

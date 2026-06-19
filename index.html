@@ -354,7 +354,7 @@ function card(day,e,idx){
     return `<div class="ex" style="border-left-color:var(--up)">
       <div class="head"><span class="name">${esc(name)}</span>${EQ_LABEL[eq]?`<span class="badge">${EQ_LABEL[eq]}</span>`:''}${tagv?`<span class="tag">${tagv}</span>`:''}<span class="saved" style="margin-left:auto">✓ 完了</span></div>
       <div style="padding:0 13px 12px"><div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">${sum||'<span class="pv">データなし</span>'}</div>
-      <div style="display:flex;gap:8px"><button class="btn" style="height:38px;font-size:.82rem" onclick="startEx('${day.key}',${idx})">▶ 再実行</button><button class="btn g" style="height:38px;font-size:.82rem" onclick="clearExNew('${day.key}',${idx})">削除</button></div></div></div>`;
+      <div style="display:flex;gap:8px"><button class="btn" style="height:38px;font-size:.82rem" onclick="editEx('${day.key}',${idx})">✎ 編集</button><button class="btn g" style="height:38px;font-size:.82rem" onclick="clearExNew('${day.key}',${idx})">削除</button></div></div></div>`;
   }
   const prevChips=prev?prev.sets.filter(s=>s.w!=null||s.r!=null).map((s,i)=>`<span class="chip"><span class="k">SET${i+1}</span>${s.w!=null?fmtW(s.w)+'kg':'–'}×${s.r!=null?s.r+'回':'–'}</span>`).join(''):'<span style="color:var(--muted2);font-size:.8rem">前回記録なし</span>';
   return `<div class="ex">
@@ -405,6 +405,18 @@ function startEx(dk,idx){
   const day=PROGRAM.find(d=>d.key===dk),e=day.ex[idx],n=setCount(e[1]);
   const prev=prevSession(dk,e[0]);
   const sets=Array.from({length:n},(_,i)=>{const pv=prev&&prev.sets[i]?prev.sets[i]:null;return{w:pv&&pv.w!=null?pv.w:null,r:null};});
+  activeExState={dk,idx,setIdx:0,sets};
+  renderWorkout();
+  setTimeout(()=>{const el=document.querySelector('.ex.open');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},60);
+}
+function editEx(dk,idx){
+  const day=PROGRAM.find(d=>d.key===dk),e=day.ex[idx],n=setCount(e[1]);
+  const today=todaySession(dk,e[0]),prev=prevSession(dk,e[0]);
+  const sets=Array.from({length:n},(_,i)=>{
+    const tv=today&&today.sets[i]?today.sets[i]:null;
+    const pv=prev&&prev.sets[i]?prev.sets[i]:null;
+    return{w:tv&&tv.w!=null?tv.w:(pv&&pv.w!=null?pv.w:null),r:tv&&tv.r!=null?tv.r:null};
+  });
   activeExState={dk,idx,setIdx:0,sets};
   renderWorkout();
   setTimeout(()=>{const el=document.querySelector('.ex.open');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},60);

@@ -1,0 +1,95 @@
+-- デフォルト種目シード（index.html の CAT 定義より）
+INSERT INTO exercises (name, muscle_group, equipment, is_default) VALUES
+-- 胸 (chest)
+('ベンチプレス','chest','bb',true),('インクラインベンチプレス','chest','bb',true),('デクラインベンチプレス','chest','bb',true),
+('スミスベンチプレス','chest','smith',true),('スミスインクラインプレス','chest','smith',true),('スミスデクラインプレス','chest','smith',true),
+('ダンベルベンチプレス','chest','db',true),('インクラインダンベルプレス','chest','db',true),('ダンベルフライ','chest','db',true),
+('アイソラテラルチェストプレス','chest','iso',true),('アイソラテラルインクラインプレス','chest','iso',true),('ペックデック(プレートロード)','chest','iso',true),
+('マシンチェストプレス','chest','machine',true),('チェストフライ(マシン)','chest','machine',true),
+('ケーブルフライ','chest','cable',true),('ケーブルクロスオーバー','chest','cable',true),('ケーブルチェストプレス','chest','cable',true),
+('ディップス(胸)','chest','bw',true),('腕立て伏せ','chest','bw',true),
+-- 背中 (back)
+('バーベルロウ','back','bb',true),('ペンドレイロウ','back','bb',true),('デッドリフト','back','bb',true),('Tバーロウ','back','bb',true),
+('スミスロウ','back','smith',true),
+('ワンハンドダンベルロウ','back','db',true),('ダンベルプルオーバー','back','db',true),
+('アイソラテラルロウ','back','iso',true),('アイソラテラルプルダウン','back','iso',true),
+('マシンロウ','back','machine',true),('アシステッドチンニング','back','machine',true),
+('ラットプルダウン','back','cable',true),('シーテッドケーブルロウ','back','cable',true),('ストレートアームプルダウン','back','cable',true),
+('懸垂(チンニング)','back','bw',true),('インバーテッドロウ','back','bw',true),
+-- 肩前部 (delts_front)
+('バーベルショルダープレス','delts_front','bb',true),('フロントレイズ(バーベル)','delts_front','bb',true),
+('スミスショルダープレス','delts_front','smith',true),
+('ダンベルショルダープレス','delts_front','db',true),('アーノルドプレス','delts_front','db',true),('フロントレイズ','delts_front','db',true),
+('アイソラテラルショルダープレス','delts_front','iso',true),
+('マシンショルダープレス','delts_front','machine',true),
+('ケーブルフロントレイズ','delts_front','cable',true),
+('パイクプッシュアップ','delts_front','bw',true),
+-- 肩側部 (delts_side)
+('アップライトロウ','delts_side','bb',true),('スミスアップライトロウ','delts_side','smith',true),
+('サイドレイズ','delts_side','db',true),('リーニングサイドレイズ','delts_side','db',true),
+('アイソラテラルサイドレイズ','delts_side','iso',true),
+('ラテラルレイズマシン','delts_side','machine',true),
+('ケーブルサイドレイズ','delts_side','cable',true),
+-- 肩後部 (delts_rear)
+('リアレイズ(ダンベル)','delts_rear','db',true),('ベントオーバーリアレイズ','delts_rear','db',true),
+('アイソラテラルリアデルトフライ','delts_rear','iso',true),
+('リアデルトフライ(マシン)','delts_rear','machine',true),
+('ケーブルリアデルトフライ','delts_rear','cable',true),('フェイスプル','delts_rear','cable',true),
+-- 僧帽 (traps)
+('バーベルシュラッグ','traps','bb',true),('スミスシュラッグ','traps','smith',true),('ダンベルシュラッグ','traps','db',true),
+('ケーブルシュラッグ','traps','cable',true),
+-- 二頭 (biceps)
+('バーベルカール','biceps','bb',true),('EZバーカール','biceps','bb',true),('プリーチャーカール(バーベル)','biceps','bb',true),
+('ダンベルカール','biceps','db',true),('インクラインダンベルカール','biceps','db',true),('ハンマーカール','biceps','db',true),('コンセントレーションカール','biceps','db',true),
+('アイソラテラルカール','biceps','iso',true),
+('プリーチャーカールマシン','biceps','machine',true),('マシンカール','biceps','machine',true),
+('ケーブルカール','biceps','cable',true),('ケーブルハンマーカール','biceps','cable',true),
+('チンアップ(逆手懸垂)','biceps','bw',true),
+-- 三頭 (triceps)
+('クローズグリップベンチプレス','triceps','bb',true),('ライイングエクステンション(スカルクラッシャー)','triceps','bb',true),('フレンチプレス','triceps','bb',true),
+('スミスクローズグリップベンチ','triceps','smith',true),
+('ダンベルオーバーヘッドエクステンション','triceps','db',true),('ダンベルキックバック','triceps','db',true),
+('トライセプスエクステンションマシン','triceps','iso',true),('ディップスマシン','triceps','iso',true),
+('グラビトロン(ディップス補助)','triceps','machine',true),
+('ローププッシュダウン','triceps','cable',true),('ケーブルプッシュダウン','triceps','cable',true),('オーバーヘッドケーブルエクステンション','triceps','cable',true),
+('ディップス','triceps','bw',true),('ナロー腕立て伏せ','triceps','bw',true),
+-- 前腕 (forearm)
+('リストカール','forearm','bb',true),('リバースリストカール','forearm','bb',true),('ダンベルリストカール','forearm','db',true),
+('ケーブルリストカール','forearm','cable',true),
+-- 大腿四頭 (quads)
+('バックスクワット','quads','bb',true),('フロントスクワット','quads','bb',true),
+('スミススクワット','quads','smith',true),('スミスハックスクワット','quads','smith',true),
+('ゴブレットスクワット','quads','db',true),('ダンベルランジ','quads','db',true),
+('ハックスクワットマシン(プレートロード)','quads','iso',true),
+('レッグエクステンション','quads','machine',true),('レッグプレス','quads','machine',true),
+('自重スクワット','quads','bw',true),('ブルガリアンスクワット(自重)','quads','bw',true),
+-- ハム (hams)
+('ルーマニアンデッドリフト','hams','bb',true),('スティッフレッグデッドリフト','hams','bb',true),
+('スミスRDL','hams','smith',true),
+('ダンベルルーマニアンデッドリフト','hams','db',true),
+('ライイングレッグカール','hams','machine',true),('シーテッドレッグカール','hams','machine',true),
+('ケーブルプルスルー','hams','cable',true),('ケーブルレッグカール','hams','cable',true),
+('ノルディックハムカール','hams','bw',true),
+-- 臀部 (glutes)
+('バーベルヒップスラスト','glutes','bb',true),
+('スミスヒップスラスト','glutes','smith',true),
+('ダンベルヒップスラスト','glutes','db',true),('ダンベルランジ(臀部)','glutes','db',true),
+('ヒップスラストマシン(プレートロード)','glutes','iso',true),
+('ヒップアブダクションマシン','glutes','machine',true),
+('ケーブルキックバック','glutes','cable',true),('ケーブルヒップアブダクション','glutes','cable',true),
+('ヒップリフト','glutes','bw',true),('ブルガリアンスクワット','glutes','bw',true),
+-- カーフ (calves)
+('バーベルカーフレイズ','calves','bb',true),
+('スミスカーフレイズ','calves','smith',true),
+('ダンベルカーフレイズ','calves','db',true),
+('スタンディングカーフレイズマシン(プレートロード)','calves','iso',true),
+('シーテッドカーフレイズ','calves','machine',true),('スタンディングカーフレイズマシン','calves','machine',true),
+('ケーブルカーフレイズ','calves','cable',true),
+('自重カーフレイズ','calves','bw',true),
+-- 腹 (abs)
+('バーベルロールアウト','abs','bb',true),
+('ダンベルサイドベンド','abs','db',true),
+('アブクランチマシン','abs','machine',true),
+('ケーブルクランチ','abs','cable',true),('ケーブルウッドチョップ','abs','cable',true),
+('クランチ','abs','bw',true),('レッグレイズ','abs','bw',true),('プランク','abs','bw',true)
+ON CONFLICT (name, muscle_group, equipment) DO NOTHING;
