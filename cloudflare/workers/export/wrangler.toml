@@ -1,0 +1,21 @@
+name            = "workout-export"
+main            = "src/index.ts"
+compatibility_date = "2024-09-01"
+
+# Service Bindings: 他の Worker を直接呼ぶ (HTTP オーバーヘッドなし・同一 DC 内通信)
+[[services]]
+binding = "WORKOUT_SERVICE"
+service = "workout-workout"
+
+[[services]]
+binding = "USER_SERVICE"
+service = "workout-user"
+
+# R2 バケット (CSV 保存用・任意)
+[[r2_buckets]]
+binding     = "EXPORT_BUCKET"
+bucket_name = "workout-memo-exports"
+
+[[routes]]
+pattern   = "workout.example.com/api/export*"
+zone_name = "example.com"

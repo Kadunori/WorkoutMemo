@@ -1,0 +1,17 @@
+name            = "workout-auth"
+main            = "src/index.ts"
+compatibility_date = "2024-09-01"
+
+[[d1_databases]]
+binding      = "DB"
+database_name = "workout-memo"
+database_id  = ""   # wrangler d1 create workout-memo で取得して記入
+
+# JWT_SECRET は平文で書かない → wrangler secret put JWT_SECRET
+# [vars] には非機密の設定値のみ書く
+[vars]
+ENVIRONMENT = "production"
+
+[[routes]]
+pattern = "workout.example.com/api/auth/*"
+zone_name = "example.com"
