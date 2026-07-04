@@ -100,6 +100,27 @@
   .timer.over .big{color:var(--up);}
   .flash{animation:fl .5s ease 3;}
   @keyframes fl{0%,100%{background:var(--bg);}50%{background:#2a2417;}}
+  /* set rows / progress / color swatch */
+  .setrow{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid var(--line);border-radius:6px;}
+  .setrow:active{background:var(--panel2);}
+  .setrow .sl{font-size:.78rem;font-weight:800;min-width:58px;}
+  .setrow .sv{font-size:.9rem;font-weight:700;}
+  .setrow .se{margin-left:auto;color:var(--muted2);font-size:.82rem;}
+  .pbar{height:4px;border-radius:2px;background:var(--panel2);margin:6px 0 14px;overflow:hidden;}
+  .pbar i{display:block;height:100%;background:var(--accent);border-radius:2px;transition:width .3s;}
+  .sw{display:inline-block;width:36px;height:36px;border-radius:50%;margin:0 9px 9px 0;border:3px solid transparent;box-shadow:0 0 0 1px var(--line);vertical-align:middle;}
+  .sw.on{border-color:var(--txt);transform:scale(1.08);}
+  /* mini rest timer bar */
+  #mini{position:fixed;left:0;right:0;bottom:calc(56px + env(safe-area-inset-bottom));z-index:26;max-width:520px;margin:0 auto;display:none;align-items:center;gap:10px;background:var(--panel2);border-top:1px solid var(--line);padding:10px 18px 8px;}
+  #mini .mbar{position:absolute;left:0;top:0;right:0;height:3px;}
+  #mini .mbar i{display:block;height:100%;background:var(--accent);transition:width 1s linear;}
+  #mini.over .mbar i{background:var(--up);}
+  #mini.show{display:flex;}
+  #mini .mt{flex:1;font-weight:800;font-variant-numeric:tabular-nums;font-size:.95rem;color:var(--accent);}
+  #mini.over .mt{color:var(--up);}
+  #mini .mp,#mini .mx{width:38px;height:38px;border-radius:10px;background:var(--panel);border:1px solid var(--line);color:var(--txt);font-size:14px;font-weight:800;flex:0 0 auto;}
+  body.mini-on .fab{bottom:calc(132px + env(safe-area-inset-bottom));}
+  body.mini-on .app{padding-bottom:calc(126px + env(safe-area-inset-bottom));}
   #toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%) translateY(10px);background:var(--txt);color:#0d0e11;font-weight:800;font-size:.84rem;padding:10px 18px;border-radius:999px;opacity:0;pointer-events:none;transition:.25s;z-index:60;}
   #toast.show{opacity:1;transform:translateX(-50%);}
   input[type=text],input[type=number]{font-family:inherit;}
@@ -112,6 +133,7 @@
   <main id="main">読み込み中…</main>
 </div>
 <button class="fab" id="fab" onclick="openTimer()">⏱</button>
+<div id="mini" onclick="openTimer()"><div class="mbar"><i></i></div><span class="mt"></span><button class="mp" onclick="event.stopPropagation();tToggle()">❚❚</button><button class="mx" onclick="event.stopPropagation();tReset()">✕</button></div>
 <div class="nav" id="nav"></div>
 <div class="ov" id="ov"><div class="sheet" id="sheet"></div></div>
 <div id="toast"></div>
@@ -330,13 +352,14 @@ function render(){
 function renderWorkout(){
   const day=PROGRAM.find(d=>d.key===activeDay)||PROGRAM[0];
   document.documentElement.style.setProperty('--accent',day.color);
-  document.getElementById('tabsWrap').innerHTML=`<div class="seltag">鍛える部位を選択</div>
-    <nav class="tabs">${PROGRAM.map(d=>`<button class="tab" aria-selected="${d.key===activeDay}" style="--tabc:${d.color}" onclick="selDay('${d.key}')"><span class="pip"></span>${d.label}</button>`).join('')}</nav>`;
+  document.getElementById('tabsWrap').innerHTML=`<div class="seltag">メニューを選択</div>
+    <nav class="tabs">${PROGRAM.map(d=>`<button class="tab" aria-selected="${d.key===activeDay}" style="--tabc:${d.color}" onclick="selDay('${d.key}')"><span class="pip"></span>${esc(d.label)}</button>`).join('')}<button class="tab" style="--tabc:var(--muted2)" onclick="addDay()">＋ 追加</button></nav>`;
   const logged=day.ex.filter(e=>todaySession(day.key,e[0])).length;
-  let h=`<div class="dh"><div><div class="eyebrow" style="color:${day.color}">${day.en}</div><h2>${day.label}の日</h2></div>
+  let h=`<div class="dh"><div>${day.en?`<div class="eyebrow" style="color:${day.color}">${day.en}</div>`:''}<h2>${esc(day.label)}</h2></div>
     <button class="editbtn" onclick="openEditor()">✎ 編集</button></div>
     <div class="focus">${day.ex.length}種目 ・ 合計 ${totalSets(day.ex)}セット</div>
-    <div class="prog">記録済み ${logged}/${day.ex.length} 種目</div>`;
+    <div class="prog" style="margin-bottom:0">記録済み ${logged}/${day.ex.length} 種目</div>
+    <div class="pbar"><i style="width:${day.ex.length?Math.round(logged/day.ex.length*100):0}%"></i></div>`;
   day.ex.forEach((e,i)=>h+=card(day,e,i));
   if(!day.ex.length)h+=`<p style="color:var(--muted2);text-align:center;padding:24px 0">種目がありません。「✎ 編集」から追加してください。</p>`;
   document.getElementById('main').innerHTML=h;
@@ -366,18 +389,20 @@ function card(day,e,idx){
 }
 
 function activeCard(day,e,idx,prev,n,step){
-  const[name,sr,rir,rest,tagv,eq]=e,{setIdx,sets}=activeExState,isLast=setIdx>=n-1;
+  const[name,sr,rir,rest,tagv,eq]=e,{setIdx,sets,confirmed}=activeExState;
+  const remaining=[];for(let i=0;i<n;i++)if(i!==setIdx&&!confirmed.has(i))remaining.push(i);
+  const isFinal=remaining.length===0;
   const pv=prev&&prev.sets[setIdx]?prev.sets[setIdx]:null;
   const curSet=sets[setIdx]||{},curW=curSet.w!=null?fmtW(curSet.w):'',curR=curSet.r!=null?String(curSet.r):'';
   let slist='';
   for(let i=0;i<n;i++){
     const s=sets[i]||{},ppv=prev&&prev.sets[i]?prev.sets[i]:null;
-    if(i<setIdx)
-      slist+=`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)"><span style="color:var(--up);font-size:.78rem;font-weight:800;min-width:56px">SET ${i+1} ✓</span><span style="font-size:.9rem;font-weight:700">${s.w!=null?fmtW(s.w)+'kg':'–'} × ${s.r!=null?s.r+'回':'–'}</span></div>`;
-    else if(i===setIdx)
-      slist+=`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)"><span style="color:var(--accent);font-size:.78rem;font-weight:800;min-width:56px">SET ${i+1} ▶</span><span style="font-size:.8rem;color:var(--muted)">入力中</span></div>`;
+    if(i===setIdx)
+      slist+=`<div class="setrow"><span class="sl" style="color:var(--accent)">SET ${i+1} ▶</span><span class="sv" style="color:var(--muted);font-size:.8rem">入力中</span></div>`;
+    else if(confirmed.has(i))
+      slist+=`<div class="setrow" onclick="gotoSet(${i})"><span class="sl" style="color:var(--up)">SET ${i+1} ✓</span><span class="sv">${s.w!=null?fmtW(s.w)+'kg':'–'} × ${s.r!=null?s.r+'回':'–'}</span><span class="se">✎ タップで修正</span></div>`;
     else
-      slist+=`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted2);font-size:.78rem;font-weight:800;min-width:56px">SET ${i+1}</span><span style="font-size:.78rem;color:var(--muted2)">${ppv&&ppv.w!=null?fmtW(ppv.w)+'kg (前回)':'–'}</span></div>`;
+      slist+=`<div class="setrow" onclick="gotoSet(${i})"><span class="sl" style="color:var(--muted2)">SET ${i+1}</span><span class="sv" style="color:var(--muted2);font-weight:600;font-size:.8rem">${ppv&&ppv.w!=null?fmtW(ppv.w)+'kg (前回)':'–'}</span></div>`;
   }
   return `<div class="ex open" style="border-left-color:var(--accent);border-color:color-mix(in srgb,var(--accent) 55%,var(--line))">
     <div class="head"><span class="name">${esc(name)}</span>${EQ_LABEL[eq]?`<span class="badge">${EQ_LABEL[eq]}</span>`:''}${tagv?`<span class="tag">${tagv}</span>`:''}<button class="btn g" style="margin-left:auto;height:32px;padding:0 10px;font-size:.76rem" onclick="cancelEx()">✕ 中断</button></div>
@@ -391,10 +416,8 @@ function activeCard(day,e,idx,prev,n,step){
           <div class="ins"><span class="u">重量</span><button class="sb" onclick="aAdj('w',${-step})">−</button><input id="aw" inputmode="decimal" value="${curW}" placeholder="${pv&&pv.w!=null?fmtW(pv.w):'kg'}" style="flex:1;height:58px;font-size:24px;font-weight:800;text-align:center;border-radius:12px;background:var(--bg);border:2px solid var(--accent);color:var(--txt);font-family:inherit"><button class="sb" onclick="aAdj('w',${step})">＋</button><span class="si">kg(±${step})</span></div>
           <div class="ins"><span class="u">回数</span><button class="sb" onclick="aAdj('r',-1)">−</button><input id="ar" inputmode="numeric" value="${curR}" placeholder="${pv&&pv.r!=null?pv.r:'回'}" style="flex:1;height:58px;font-size:24px;font-weight:800;text-align:center;border-radius:12px;background:var(--bg);border:2px solid var(--accent);color:var(--txt);font-family:inherit"><button class="sb" onclick="aAdj('r',1)">＋</button><span class="si">回(±1)</span></div>
         </div>
-        <div class="saverow">
-          ${!isLast?`<button class="btn" onclick="nextSet()">Next SET →</button>`:''}
-          <button class="btn${isLast?'':' g'}" ${isLast?'':`style="background:none;border:1px solid var(--up);color:var(--up)"`} onclick="doneEx()">Done ✓</button>
-        </div>
+        <button class="btn" style="width:100%;height:56px;font-size:1.02rem" onclick="${isFinal?'doneEx()':'nextSet()'}">✓ SET ${setIdx+1} 完了${isFinal?'して保存':''}</button>
+        ${isFinal?'':`<button class="ic" style="width:100%;color:var(--muted2);text-decoration:underline;margin-top:8px;font-size:.78rem" onclick="doneEx()">ここまでで保存して終了</button>`}
       </div>
       <div style="padding:0 2px">${slist}</div>
     </div>
@@ -404,20 +427,22 @@ function activeCard(day,e,idx,prev,n,step){
 function startEx(dk,idx){
   const day=PROGRAM.find(d=>d.key===dk),e=day.ex[idx],n=setCount(e[1]);
   const prev=prevSession(dk,e[0]);
-  const sets=Array.from({length:n},(_,i)=>{const pv=prev&&prev.sets[i]?prev.sets[i]:null;return{w:pv&&pv.w!=null?pv.w:null,r:null};});
-  activeExState={dk,idx,setIdx:0,sets};
+  const sets=Array.from({length:n},(_,i)=>{const pv=prev&&prev.sets[i]?prev.sets[i]:null;return{w:pv&&pv.w!=null?pv.w:null,r:pv&&pv.r!=null?pv.r:null};});
+  activeExState={dk,idx,setIdx:0,sets,confirmed:new Set()};
   renderWorkout();
   setTimeout(()=>{const el=document.querySelector('.ex.open');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},60);
 }
 function editEx(dk,idx){
   const day=PROGRAM.find(d=>d.key===dk),e=day.ex[idx],n=setCount(e[1]);
   const today=todaySession(dk,e[0]),prev=prevSession(dk,e[0]);
+  const confirmed=new Set();
   const sets=Array.from({length:n},(_,i)=>{
     const tv=today&&today.sets[i]?today.sets[i]:null;
     const pv=prev&&prev.sets[i]?prev.sets[i]:null;
-    return{w:tv&&tv.w!=null?tv.w:(pv&&pv.w!=null?pv.w:null),r:tv&&tv.r!=null?tv.r:null};
+    if(tv&&(tv.w!=null||tv.r!=null))confirmed.add(i);
+    return{w:tv&&tv.w!=null?tv.w:(pv&&pv.w!=null?pv.w:null),r:tv&&tv.r!=null?tv.r:(pv&&pv.r!=null?pv.r:null)};
   });
-  activeExState={dk,idx,setIdx:0,sets};
+  activeExState={dk,idx,setIdx:0,sets,confirmed};
   renderWorkout();
   setTimeout(()=>{const el=document.querySelector('.ex.open');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},60);
 }
@@ -434,11 +459,26 @@ function readActive(){
 }
 function nextSet(){
   if(!activeExState)return;
-  const{sets,setIdx}=activeExState,cur=readActive();
-  sets[setIdx]={w:cur.w,r:cur.r};
-  activeExState.setIdx++;
+  const{sets,setIdx,confirmed}=activeExState,cur=readActive();
+  sets[setIdx]={w:cur.w,r:cur.r};confirmed.add(setIdx);
+  // 次の未完了セットへ(いま入力した値をそのまま引き継ぎ)
+  const nn=sets.length;let nx=-1;
+  for(let i=setIdx+1;i<nn;i++)if(!confirmed.has(i)){nx=i;break;}
+  if(nx<0)for(let i=0;i<nn;i++)if(!confirmed.has(i)){nx=i;break;}
+  if(nx<0){doneEx();return;}
+  if(cur.w!=null)sets[nx].w=cur.w;
+  if(cur.r!=null)sets[nx].r=cur.r;
+  activeExState.setIdx=nx;
+  autoRest();
   renderWorkout();
   setTimeout(()=>{const el=document.querySelector('.ex.open');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},60);
+}
+function gotoSet(i){
+  if(!activeExState)return;
+  const cur=readActive();
+  activeExState.sets[activeExState.setIdx]={w:cur.w,r:cur.r};
+  activeExState.setIdx=i;
+  renderWorkout();
 }
 function doneEx(){
   if(!activeExState)return;
@@ -449,7 +489,12 @@ function doneEx(){
   const k=exKey(dk,e[0]),hist=LOGS[k]||[],date=todayStr(),li=hist.findIndex(s=>s.date===date);
   const en={date,sets};if(li>=0)hist[li]=en;else hist.push(en);
   LOGS[k]=hist.slice(-50);saveLogs();
-  activeExState=null;toast('記録しました ✓');renderWorkout();
+  activeExState=null;toast('記録しました ✓');
+  autoRest(dk,idx); // 次の種目までの休憩もタイマー開始
+  renderWorkout();
+  // 次の未記録種目へ自動スクロール
+  const ni=day.ex.findIndex(e2=>!todaySession(dk,e2[0]));
+  if(ni>=0)setTimeout(()=>{const els=document.querySelectorAll('#main .ex');if(els[ni])els[ni].scrollIntoView({behavior:'smooth',block:'center'});},120);
 }
 function cancelEx(){activeExState=null;renderWorkout();}
 function clearExNew(dk,idx){
@@ -459,25 +504,47 @@ function clearExNew(dk,idx){
 }
 
 /* ====== メニュー編集 ====== */
-let edit={ex:null,view:'list',idx:-1,m:null,eq:null,name:'',custom:false,sets:3,reps:'8–12',rir:'1–2',rest:'90秒'};
-function openEditor(){const day=PROGRAM.find(d=>d.key===activeDay);edit={ex:day.ex.map(e=>e.slice()),view:'list',idx:-1,m:null,eq:null,name:'',custom:false,sets:3,reps:'8–12',rir:'1–2',rest:'90秒'};renderEditor();showSheet();}
+const PALETTE=['#e5645b','#f0a23b','#e8c84a','#7bc95f','#37b59e','#4fc3d9','#5aa0e0','#9384ea','#c47ee0','#e07ab8','#e0806a','#9aa3b2'];
+function addDay(){
+  const key='d'+Date.now().toString(36);
+  const color=PALETTE[PROGRAM.length%PALETTE.length];
+  PROGRAM.push({key,label:'新メニュー',en:'',color,focus:'',ex:[]});
+  saveProgram();activeDay=key;activeExState=null;render();openEditor();
+}
+function eDelDay(){
+  if(PROGRAM.length<=1){toast('最後のメニューは削除できません');return;}
+  if(!confirm('このメニューを削除しますか?(過去の記録は履歴に残ります)'))return;
+  PROGRAM=PROGRAM.filter(d=>d.key!==activeDay);
+  SCHEDULE=SCHEDULE.map(k=>k===activeDay?null:k);
+  saveProgram();saveSchedule();
+  todayKey=SCHEDULE[todayWd===0?6:todayWd-1]||null;
+  activeDay=PROGRAM[0].key;closeSheet();render();toast('メニューを削除しました');
+}
+let edit={ex:null,view:'list',idx:-1,m:null,eq:null,name:'',custom:false,sets:3,reps:'8–12',rir:'1–2',rest:'90秒',label:''};
+function openEditor(){const day=PROGRAM.find(d=>d.key===activeDay);edit={ex:day.ex.map(e=>e.slice()),view:'list',idx:-1,m:null,eq:null,name:'',custom:false,sets:3,reps:'8–12',rir:'1–2',rest:'90秒',label:day.label,color:day.color};renderEditor();showSheet();}
+function eColor(c){edit.color=c;renderEditor();}
 function renderEditor(){
   const day=PROGRAM.find(d=>d.key===activeDay);
   if(edit.view==='list'){
-    let h=`<h3 style="margin:0 0 10px">${day.label}の日 ・ メニュー編集</h3>`;
+    let h=`<h3 style="margin:0 0 10px">メニュー編集</h3>
+      <div class="sec" style="margin-top:0">メニュー名(自由に変更できます)</div>
+      <input type="text" id="dayName" value="${esc(edit.label)}" oninput="edit.label=this.value" maxlength="20" placeholder="例: 胸+三頭, プッシュの日"
+        style="width:100%;height:46px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);padding:0 14px;font-size:15px;font-weight:700;margin-bottom:6px">
+      <div class="sec">テーマカラー</div>
+      <div>${PALETTE.map(c=>`<span class="sw ${edit.color===c?'on':''}" style="background:${c}" onclick="eColor('${c}')"></span>`).join('')}</div>
+      <div class="sec">種目(部位をまたいで自由に組めます)</div>`;
     edit.ex.forEach((e,i)=>{h+=`<div class="erow"><div class="nm">${esc(e[0])}<div style="margin-top:3px">${EQ_LABEL[e[5]]?`<span class="badge">${EQ_LABEL[e[5]]}</span> `:''}${e[4]?`<span class="tag">${e[4]}</span> `:''}<span class="pv">${e[1]} ・ RIR ${e[2]} ・ ${e[3]}</span></div></div>
       <button class="ic" onclick="eMove(${i},-1)">▲</button><button class="ic" onclick="eMove(${i},1)">▼</button>
       <button class="ic" onclick="eEdit(${i})">✎</button><button class="ic" style="color:var(--down)" onclick="eDel(${i})">✕</button></div>`;});
     h+=`<button class="btn" style="margin-top:14px;width:100%;background:none;border:1px solid var(--accent);color:var(--accent)" onclick="eAdd()">＋ 種目を追加</button>
-      <button class="ic" style="width:100%;color:var(--muted2);text-decoration:underline;margin-top:10px" onclick="eReset()">この日を初期メニューに戻す</button>
-      <div class="saverow" style="margin-top:14px"><button class="btn" onclick="eCommit()">保存</button><button class="btn g" onclick="closeSheet()">取消</button></div>`;
+      <div class="saverow" style="margin-top:14px"><button class="btn" onclick="eCommit()">保存</button><button class="btn g" onclick="closeSheet()">取消</button></div>
+      <button class="danger" style="margin-top:12px" onclick="eDelDay()">このメニューを削除</button>`;
     document.getElementById('sheet').innerHTML=h;
   } else { renderForm(); }
 }
 function eMove(i,d){const j=i+d;if(j<0||j>=edit.ex.length)return;[edit.ex[i],edit.ex[j]]=[edit.ex[j],edit.ex[i]];renderEditor();}
 function eDel(i){edit.ex.splice(i,1);renderEditor();}
-function eReset(){const def=clone(DEFAULT).find(d=>d.key===activeDay);edit.ex=def?def.ex:[];renderEditor();}
-function eCommit(){PROGRAM=PROGRAM.map(d=>d.key===activeDay?{...d,ex:edit.ex}:d);saveProgram();closeSheet();render();toast('メニューを保存');}
+function eCommit(){const label=(edit.label||'').trim();PROGRAM=PROGRAM.map(d=>d.key===activeDay?{...d,ex:edit.ex,label:label||d.label,color:edit.color||d.color}:d);saveProgram();closeSheet();render();toast('メニューを保存');}
 function eAdd(){Object.assign(edit,{view:'add',idx:-1,m:null,eq:null,name:'',custom:false,sets:3,reps:'8–12',rir:'1–2',rest:'90秒'});renderEditor();}
 function eEdit(i){const e=edit.ex[i];Object.assign(edit,{view:'edit',idx:i,m:null,eq:e[5],name:e[0],custom:false,sets:parseInt(e[1])||3,reps:(e[1].split('×')[1]||'8–12').trim(),rir:e[2],rest:e[3]});renderEditor();}
 function renderForm(){
@@ -570,7 +637,7 @@ function renderInfo(){
   document.getElementById('tabsWrap').innerHTML='';
   document.documentElement.style.setProperty('--accent','var(--delts)');
   const wDisp=getWeekDisp();
-  const week=wDisp.map(([w,n,wd,isRest])=>`<div class="wd ${isRest?'rest':''} ${wd===todayWd&&!isRest?'today':''}"><div class="w">${w}</div><div class="n">${n}</div></div>`).join('');
+  const week=wDisp.map(([w,n,wd,isRest])=>`<div class="wd ${isRest?'rest':''} ${wd===todayWd&&!isRest?'today':''}"><div class="w">${w}</div><div class="n">${esc(n)}</div></div>`).join('');
   const stmsg=STORAGE_OK?'記録・体重・メニューはこの端末に保存されます。':'※保存が無効(プライベートモード等)。';
   let big3h='';
   BIG3_KEYS.forEach((k,idx)=>{
@@ -646,7 +713,7 @@ function renderScheduleEditor(){
     const cur=tempSchedule[i]??null;
     h+=`<div style="display:flex;align-items:center;gap:6px;padding:10px 0;border-bottom:1px solid var(--line);flex-wrap:wrap">
       <span style="font-weight:800;font-size:1rem;width:26px;flex-shrink:0">${day}</span>
-      ${opts.map(([key,label])=>`<span class="pill ${cur===key?'on':''}" style="margin:0;height:34px;padding:0 12px;font-size:.82rem" onclick="scheduleSet(${i},${key===null?'null':"'"+key+"'"})"> ${label}</span>`).join('')}
+      ${opts.map(([key,label])=>`<span class="pill ${cur===key?'on':''}" style="margin:0;height:34px;padding:0 12px;font-size:.82rem" onclick="scheduleSet(${i},${key===null?'null':"'"+key+"'"})"> ${esc(label)}</span>`).join('')}
     </div>`;
   });
   h+=`<div class="saverow" style="margin-top:16px"><button class="btn" onclick="scheduleCommit()">保存</button><button class="btn g" onclick="closeSheet()">取消</button></div>`;
@@ -674,6 +741,46 @@ function delAll(btn){if(!delArm){delArm=true;btn.textContent='もう一度タッ
 
 /* ====== 休憩タイマー(ストップウォッチ＋アラート / iOSは音＋点滅) ====== */
 let tEl=0,tRun=false,tAlert=90,tFired=false,tInt=null,actx=null;
+let AUTOTIMER=true;try{AUTOTIMER=localStorage.getItem('gym-autotimer-v1')!=='0';}catch(e){}
+function toggleAuto(){AUTOTIMER=!AUTOTIMER;try{localStorage.setItem('gym-autotimer-v1',AUTOTIMER?'1':'0');}catch(e){}renderTimer();}
+// '90秒'/'2分'/'2–3分'/'60–90秒' → 秒数(下限値を採用)
+function restSecs(rest){const m=String(rest||'').match(/(\d+(?:\.\d+)?)/);if(!m)return 90;const v=parseFloat(m[1]);return Math.max(15,Math.round(/分/.test(rest)?v*60:v));}
+function autoRest(dk,idx){
+  if(!AUTOTIMER)return;
+  if(dk==null){if(!activeExState)return;dk=activeExState.dk;idx=activeExState.idx;}
+  const day=PROGRAM.find(d=>d.key===dk);if(!day)return;
+  const e=day.ex[idx];if(!e)return;
+  startRestTimer(restSecs(e[3]));
+}
+function startRestTimer(sec){
+  tAlert=sec;tEl=0;tFired=false;
+  clearInterval(tInt);
+  tRun=true;
+  try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();}catch(e){}
+  tInt=setInterval(tTick,1000);
+  updateMini();
+}
+function tTick(){
+  tEl++;
+  if(!tFired&&tEl>=tAlert){
+    tFired=true;beep();setTimeout(beep,500);setTimeout(beep,1000);
+    try{navigator.vibrate&&navigator.vibrate([200,100,200,100,400]);}catch(e){}
+    const b=document.getElementById('timerBox');if(b){b.classList.add('flash');setTimeout(()=>b.classList.remove('flash'),1600);}
+  }
+  updateMini();
+  if(document.getElementById('timerBox'))renderTimer();
+}
+function updateMini(){
+  const el=document.getElementById('mini');if(!el)return;
+  const active=tRun||tEl>0;
+  el.classList.toggle('show',active);
+  document.body.classList.toggle('mini-on',active);
+  if(!active)return;
+  el.classList.toggle('over',tEl>=tAlert);
+  el.querySelector('.mt').textContent=tEl>=tAlert?`✓ 休憩終了 +${mmss(tEl-tAlert)}`:`⏱ 休憩中 残り ${mmss(tAlert-tEl)}`;
+  el.querySelector('.mp').textContent=tRun?'❚❚':'▶';
+  const bar=el.querySelector('.mbar i');if(bar)bar.style.width=Math.min(100,Math.round(tEl/tAlert*100))+'%';
+}
 function beep(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();const o=actx.createOscillator(),g=actx.createGain();o.connect(g);g.connect(actx.destination);o.type='sine';o.frequency.value=880;g.gain.setValueAtTime(0.0001,actx.currentTime);g.gain.exponentialRampToValueAtTime(0.35,actx.currentTime+0.02);g.gain.exponentialRampToValueAtTime(0.0001,actx.currentTime+0.4);o.start();o.stop(actx.currentTime+0.42);}catch(e){}}
 const mmss=s=>`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
 function openTimer(){renderTimer();showSheet();}
@@ -692,14 +799,18 @@ function renderTimer(){
       <button onclick="tAdj(30)" style="height:48px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);font-size:13px;font-weight:800">＋30s</button>
     </div>
     <div style="display:flex;justify-content:center;flex-wrap:wrap;gap:6px">${[60,90,120,180].map(p=>`<span class="pill ${tAlert===p?'on':''}" onclick="tPreset(${p})">${p}s</span>`).join('')}</div>
+    <div style="text-align:center;margin-top:14px"><span class="pill ${AUTOTIMER?'on':''}" onclick="toggleAuto()">セット保存時に自動スタート: ${AUTOTIMER?'ON':'OFF'}</span></div>
+    <div class="pv" style="text-align:center;margin-top:4px">ONにすると「SET完了」で種目の休息時間ぶんのタイマーが自動で走ります</div>
     <button class="btn g" style="width:100%;margin-top:14px" onclick="closeSheet()">閉じる</button></div>`;
 }
-function tToggle(){tRun=!tRun;if(tRun){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();}catch(e){}
-  tInt=setInterval(()=>{tEl++;if(!tFired&&tEl>=tAlert){tFired=true;beep();setTimeout(beep,500);setTimeout(beep,1000);const b=document.getElementById('timerBox');if(b){b.classList.add('flash');setTimeout(()=>b.classList.remove('flash'),1600);}}renderTimer();},1000);}
-  else clearInterval(tInt);renderTimer();}
-function tReset(){tRun=false;clearInterval(tInt);tEl=0;tFired=false;renderTimer();}
-function tAdj(d){tAlert=Math.max(15,tAlert+d);tFired=tEl>=tAlert?tFired:false;renderTimer();}
-function tPreset(p){tAlert=p;tFired=false;renderTimer();}
+function tToggle(){
+  if(tRun){tRun=false;clearInterval(tInt);}
+  else{tRun=true;try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();}catch(e){}clearInterval(tInt);tInt=setInterval(tTick,1000);}
+  updateMini();if(document.getElementById('timerBox'))renderTimer();
+}
+function tReset(){tRun=false;clearInterval(tInt);tEl=0;tFired=false;updateMini();if(document.getElementById('timerBox'))renderTimer();}
+function tAdj(d){tAlert=Math.max(15,tAlert+d);tFired=tEl>=tAlert?tFired:false;updateMini();renderTimer();}
+function tPreset(p){tAlert=p;tFired=false;updateMini();renderTimer();}
 
 /* ====== シート開閉 ====== */
 function showSheet(){document.getElementById('ov').classList.add('show');}
@@ -754,14 +865,14 @@ function histDate(){
     Object.keys(days).forEach(dk=>{const meta=dayMeta(dk),list=days[dk];
       const v=list.reduce((a,x)=>a+vol(x.sets),0),sc=list.reduce((a,x)=>a+setsDone(x.sets),0);
       totV+=v;totS+=sc;
-      badges+=`<span class="badge" style="color:${meta.color};border-color:${meta.color}66;margin-right:5px">${meta.label}</span>`;
-      body+=`<div style="margin-top:6px"><div class="pv" style="color:${meta.color};font-weight:800">${meta.label}の日</div>${exLines(list)}</div>`;});
+      badges+=`<span class="badge" style="color:${meta.color};border-color:${meta.color}66;margin-right:5px">${esc(meta.label)}</span>`;
+      body+=`<div style="margin-top:6px"><div class="pv" style="color:${meta.color};font-weight:800">${esc(meta.label)}</div>${exLines(list)}</div>`;});
     return sessionCard('hd-'+date,`${m}/${d} <span class="pv">(${wdName(date)})</span>`,badges,totS,totV,body);
   }).join('');
 }
 
 function histPart(){
-  let h=`<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:10px">${PROGRAM.map(d=>{const on=hpart===d.key;return`<span class="pill ${on?'on':''}" style="margin:0;flex:0 0 auto;${on?`background:${d.color};border-color:${d.color};color:#0d0e11`:'font-weight:700'}" onclick="setHPart('${d.key}')">${d.label}</span>`}).join('')}</div>`;
+  let h=`<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:10px">${PROGRAM.map(d=>{const on=hpart===d.key;return`<span class="pill ${on?'on':''}" style="margin:0;flex:0 0 auto;${on?`background:${d.color};border-color:${d.color};color:#0d0e11`:'font-weight:700'}" onclick="setHPart('${d.key}')">${esc(d.label)}</span>`}).join('')}</div>`;
   const prefix=hpart+'|',map={};
   Object.keys(LOGS).filter(k=>k.indexOf(prefix)===0).forEach(k=>{const name=k.slice(prefix.length);
     LOGS[k].forEach(s=>{(map[s.date]=map[s.date]||[]).push({name,sets:s.sets});});});
@@ -769,11 +880,11 @@ function histPart(){
   if(!datesAsc.length)return h+'<p style="color:var(--muted2);text-align:center;padding:30px 0">この部位の記録はまだありません。</p>';
   const vols=datesAsc.map(dt=>map[dt].reduce((a,x)=>a+vol(x.sets),0));
   const meta=dayMeta(hpart);
-  h+=`<div class="pv" style="margin:4px 0 10px">${meta.label}の記録: ${datesAsc.length}回</div>`;
+  h+=`<div class="pv" style="margin:4px 0 10px">${esc(meta.label)}の記録: ${datesAsc.length}回</div>`;
   h+=lineChart(vols);
   h+=[...datesAsc].reverse().map(date=>{const[, m,d]=date.split('-').map(Number),list=map[date];
     const v=list.reduce((a,x)=>a+vol(x.sets),0),sc=list.reduce((a,x)=>a+setsDone(x.sets),0);
-    return sessionCard('hp-'+date,`${m}/${d} <span class="pv">(${wdName(date)})</span>`,`<span class="badge" style="color:${meta.color};border-color:${meta.color}66">${meta.label}</span>`,sc,v,exLines(list));
+    return sessionCard('hp-'+date,`${m}/${d} <span class="pv">(${wdName(date)})</span>`,`<span class="badge" style="color:${meta.color};border-color:${meta.color}66">${esc(meta.label)}</span>`,sc,v,exLines(list));
   }).join('');
   return h;
 }
