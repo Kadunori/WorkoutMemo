@@ -90,6 +90,7 @@
   .ov{position:fixed;inset:0;background:#000b;z-index:40;display:none;align-items:flex-end;}
   .ov.show{display:flex;}
   .sheet{width:100%;max-width:520px;margin:0 auto;background:var(--bg);border-radius:22px 22px 0 0;padding:18px;max-height:92vh;overflow:auto;}
+  button,.pill,.tab,.sb,.ic,input{touch-action:manipulation;}
   .pill{display:inline-flex;align-items:center;justify-content:center;height:38px;padding:0 13px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);font-weight:700;font-size:.82rem;margin:0 6px 7px 0;}
   .pill.on{background:var(--accent);border-color:var(--accent);color:#0d0e11;}
   .sec{color:var(--accent);font-size:.74rem;font-weight:800;margin:14px 0 7px;}
@@ -112,7 +113,7 @@
   .sw.on{border-color:var(--txt);transform:scale(1.08);}
   /* mini rest timer bar */
   #mini{position:fixed;left:0;right:0;bottom:calc(56px + env(safe-area-inset-bottom));z-index:26;max-width:520px;margin:0 auto;display:none;align-items:center;gap:10px;background:var(--panel2);border-top:1px solid var(--line);padding:10px 18px 8px;}
-  #mini .mbar{position:absolute;left:0;top:0;right:0;height:3px;}
+  #mini .mbar{position:absolute;left:0;top:0;right:0;height:4px;}
   #mini .mbar i{display:block;height:100%;background:var(--accent);transition:width 1s linear;}
   #mini.over .mbar i{background:var(--up);}
   #mini.show{display:flex;}
@@ -141,6 +142,71 @@
 <script>
 /* ====== データ ====== */
 const EQ_STEP={bb:2.5,smith:2.5,db:1,iso:2.5,machine:5,cable:2.5,bw:1.25,other:2.5};
+/* ====== BIG3からの推奨重量(初回種目の入力を減らす) ====== */
+// [基準リフト, 係数] 係数はMAX重量に対する比率。DB系は片手あたり。
+const EXCOEF={
+'ベンチプレス':['bench',1],'バーベルベンチプレス':['bench',1],'インクラインベンチプレス':['bench',.8],'デクラインベンチプレス':['bench',1],
+'スミスベンチプレス':['bench',.95],'スミスインクラインプレス':['bench',.78],'スミスデクラインプレス':['bench',.95],
+'ダンベルベンチプレス':['bench',.32],'インクラインダンベルプレス':['bench',.27],'ダンベルフライ':['bench',.15],'インクラインダンベルフライ':['bench',.13],
+'アイソラテラルチェストプレス':['bench',.85],'アイソラテラルインクラインプレス':['bench',.7],'アイソラテラルデクラインプレス':['bench',.85],'ペックデック(プレートロード)':['bench',.6],
+'マシンチェストプレス':['bench',.85],'インクラインチェストプレス(マシン)':['bench',.7],'デクラインチェストプレス(マシン)':['bench',.85],'チェストフライ(マシン)':['bench',.6],'ディップスマシン(チェスト)':['bench',.8],
+'ケーブルクロスオーバー':['bench',.18],'ローtoハイケーブルフライ':['bench',.15],'ハイtoローケーブルフライ':['bench',.18],'ケーブルフライ':['bench',.18],'ケーブルチェストプレス':['bench',.5],
+'クローズグリップベンチプレス':['bench',.85],'スミスクローズグリップベンチ':['bench',.8],
+'デッドリフト':['deadlift',1],'スミスデッドリフト':['deadlift',.95],
+'バーベルロウ':['deadlift',.55],'ペンドレイロウ':['deadlift',.5],'Tバーロウ':['deadlift',.5],'スミスロウ':['deadlift',.55],
+'ワンハンドダンベルロウ':['deadlift',.2],'インクラインダンベルロウ':['deadlift',.15],'ダンベルプルオーバー':['bench',.2],
+'アイソラテラルロウ':['deadlift',.45],'アイソラテラルハイロウ':['deadlift',.45],'アイソラテラルローロウ':['deadlift',.45],'アイソラテラルプルダウン':['deadlift',.4],
+'マシンロウ':['deadlift',.45],'ハイロウ(マシン)':['deadlift',.45],'マシンプルダウン':['deadlift',.4],'プルオーバーマシン':['deadlift',.3],
+'ラットプルダウン':['deadlift',.4],'ワイドグリップラットプルダウン':['deadlift',.37],'シーテッドケーブルロウ':['deadlift',.45],'ワンハンドケーブルロウ':['deadlift',.2],'ストレートアームプルダウン':['deadlift',.22],
+'ルーマニアンデッドリフト':['deadlift',.75],'スティッフレッグデッドリフト':['deadlift',.7],'スミスRDL':['deadlift',.75],'ダンベルルーマニアンデッドリフト':['deadlift',.25],
+'バーベルオーバーヘッドプレス':['bench',.6],'バーベルショルダープレス':['bench',.6],'スミスショルダープレス':['bench',.55],
+'ダンベルショルダープレス':['bench',.2],'アーノルドプレス':['bench',.18],'アイソラテラルショルダープレス':['bench',.5],'マシンショルダープレス':['bench',.5],
+'フロントレイズ':['bench',.07],'フロントレイズ(バーベル)':['bench',.2],'ケーブルフロントレイズ':['bench',.06],
+'サイドレイズ':['bench',.07],'ダンベルサイドレイズ':['bench',.07],'シーテッドサイドレイズ':['bench',.06],'リーニングサイドレイズ':['bench',.06],
+'アイソラテラルサイドレイズ':['bench',.3],'ラテラルレイズマシン':['bench',.3],'ケーブルサイドレイズ':['bench',.05],'ビハインドバックケーブルサイドレイズ':['bench',.05],
+'アップライトロウ':['bench',.35],'スミスアップライトロウ':['bench',.35],
+'リアレイズ(ダンベル)':['bench',.06],'ベントオーバーリアレイズ':['bench',.06],'アイソラテラルリアデルトフライ':['bench',.35],
+'リアデルトフライ(マシン)':['bench',.35],'リバースペックデック':['bench',.35],'ケーブルリアデルトフライ':['bench',.05],'フェイスプル':['bench',.25],
+'バーベルシュラッグ':['deadlift',.6],'スミスシュラッグ':['deadlift',.6],'ダンベルシュラッグ':['deadlift',.22],'シュラッグマシン':['deadlift',.6],'アイソラテラルシュラッグ':['deadlift',.5],'ケーブルシュラッグ':['deadlift',.4],
+'バーベルカール':['bench',.35],'EZバーカール':['bench',.35],'プリーチャーカール(バーベル)':['bench',.3],'スミスドラッグカール':['bench',.3],
+'ダンベルカール':['bench',.12],'インクラインダンベルカール':['bench',.1],'ハンマーカール':['bench',.13],'コンセントレーションカール':['bench',.1],
+'アイソラテラルカール':['bench',.25],'プリーチャーカールマシン':['bench',.3],'マシンカール':['bench',.3],
+'ケーブルカール':['bench',.3],'ハイケーブルカール':['bench',.15],'ケーブルハンマーカール':['bench',.3],
+'ライイングエクステンション(スカルクラッシャー)':['bench',.35],'フレンチプレス':['bench',.3],
+'ダンベルオーバーヘッドエクステンション':['bench',.25],'ダンベルキックバック':['bench',.08],
+'アイソラテラルトライセプスエクステンション':['bench',.4],'ディップスマシン(プレートロード)':['bench',.7],
+'トライセプスエクステンションマシン':['bench',.5],'ディップスマシン':['bench',.7],
+'ローププッシュダウン':['bench',.35],'ケーブルプッシュダウン':['bench',.35],'リバースグリッププッシュダウン':['bench',.3],'ワンハンドケーブルエクステンション':['bench',.12],'オーバーヘッドケーブルエクステンション':['bench',.3],
+'バックスクワット':['squat',1],'バーベルスクワット':['squat',1],'フロントスクワット':['squat',.8],
+'スミススクワット':['squat',.95],'スミスハックスクワット':['squat',1],'スミスランジ':['squat',.5],'スミスブルガリアンスクワット':['squat',.4],
+'ゴブレットスクワット':['squat',.35],'ダンベルランジ':['squat',.15],
+'ハックスクワットマシン(プレートロード)':['squat',1],'アイソラテラルレッグプレス':['squat',.9],
+'レッグプレス':['squat',1.8],'レッグエクステンション':['squat',.5],'ハックスクワット(マシン)':['squat',1],'ペンデュラムスクワット':['squat',.9],'Vスクワットマシン':['squat',1],
+'ライイングレッグカール':['squat',.35],'シーテッドレッグカール':['squat',.4],'スタンディングレッグカール':['squat',.2],'アイソラテラルレッグカール':['squat',.3],
+'ケーブルプルスルー':['deadlift',.3],'ケーブルレッグカール':['squat',.15],
+'バーベルヒップスラスト':['squat',1.1],'スミスヒップスラスト':['squat',1.1],'ダンベルヒップスラスト':['squat',.4],'ヒップスラストマシン(プレートロード)':['squat',1],
+'ヒップアブダクションマシン':['squat',.5],'ヒップアダクションマシン(内転)':['squat',.5],'グルートキックバックマシン':['squat',.3],'ケーブルキックバック':['squat',.1],'ケーブルヒップアブダクション':['squat',.08],
+'バーベルカーフレイズ':['squat',.8],'スミスカーフレイズ':['squat',.9],'ダンベルカーフレイズ':['squat',.25],
+'スタンディングカーフレイズマシン(プレートロード)':['squat',1],'シーテッドカーフレイズ':['squat',.5],'スタンディングカーフレイズマシン':['squat',1],'レッグプレスカーフレイズ':['squat',1.2],'ケーブルカーフレイズ':['squat',.3],
+'アブクランチマシン':['bench',.4],'ロータリートルソー':['bench',.3],'ケーブルクランチ':['bench',.35],'ケーブルウッドチョップ':['bench',.2],
+'リストカール':['bench',.25],'リバースリストカール':['bench',.15],'リバースカール(EZバー)':['bench',.25],'ダンベルリストカール':['bench',.08],'リストカールマシン':['bench',.25],'ケーブルリストカール':['bench',.2],
+};
+function big3Latest(k){const a=BIG3[k];return a&&a.length?a[a.length-1].kg:null;}
+function repMid(sr){const p=String(sr).split('×')[1]||'';const ns=(p.match(/\d+/g)||[]).map(Number);if(!ns.length)return 10;return ns.length>1?(ns[0]+ns[1])/2:ns[0];}
+function repLow(sr){const p=String(sr).split('×')[1]||'';const ns=(p.match(/\d+/g)||[]).map(Number);return ns.length?ns[0]:null;}
+function rirMid(r){const ns=(String(r).match(/\d+/g)||[]).map(Number);if(!ns.length)return 1;return ns.length>1?(ns[0]+ns[1])/2:ns[0];}
+// 目標レップ+RIRで挙げられる重量をEpley式(1RM=w×(1+reps/30))の逆算で推定
+function suggestW(e){
+  const[name,sr,rir,,,eq]=e;
+  if(eq==='bw')return null;
+  const c=EXCOEF[name];if(!c)return null;
+  const max=big3Latest(c[0]);if(!max)return null;
+  const cap=repMid(sr)+rirMid(rir);
+  const w=max*c[1]/(1+cap/30);
+  const step=EQ_STEP[eq]??2.5;
+  return Math.max(step,Math.round(w/step)*step);
+}
+
 const EQ_LABEL={bb:'BB',smith:'スミス',db:'DB',iso:'アイソラテラル',machine:'マシン',cable:'ケーブル',bw:'自重',other:''};
 const EQUIPS=[['bb','バーベル'],['smith','スミス'],['db','ダンベル'],['iso','アイソラテラルマシン'],['machine','マシン'],['cable','ケーブル'],['bw','自重']];
 const MUSCLES=[['chest','胸'],['back','背中'],['delts_front','肩(前)'],['delts_side','肩(側)'],['delts_rear','肩(後)'],['traps','僧帽'],['biceps','二頭'],['triceps','三頭'],['forearm','前腕'],['quads','大腿四頭'],['hams','ハム'],['glutes','臀部'],['calves','カーフ'],['abs','腹']];
@@ -149,18 +215,18 @@ const CAT={
  chest:{
   bb:['ベンチプレス','インクラインベンチプレス','デクラインベンチプレス'],
   smith:['スミスベンチプレス','スミスインクラインプレス','スミスデクラインプレス'],
-  db:['ダンベルベンチプレス','インクラインダンベルプレス','ダンベルフライ'],
-  iso:['アイソラテラルチェストプレス','アイソラテラルインクラインプレス','ペックデック(プレートロード)'],
-  machine:['マシンチェストプレス','チェストフライ(マシン)'],
-  cable:['ケーブルフライ','ケーブルクロスオーバー','ケーブルチェストプレス'],
+  db:['ダンベルベンチプレス','インクラインダンベルプレス','ダンベルフライ','インクラインダンベルフライ'],
+  iso:['アイソラテラルチェストプレス','アイソラテラルインクラインプレス','アイソラテラルデクラインプレス','ペックデック(プレートロード)'],
+  machine:['マシンチェストプレス','インクラインチェストプレス(マシン)','デクラインチェストプレス(マシン)','チェストフライ(マシン)','ディップスマシン(チェスト)'],
+  cable:['ケーブルクロスオーバー','ローtoハイケーブルフライ','ハイtoローケーブルフライ','ケーブルフライ','ケーブルチェストプレス'],
   bw:['ディップス(胸)','腕立て伏せ']},
  back:{
   bb:['バーベルロウ','ペンドレイロウ','デッドリフト','Tバーロウ'],
-  smith:['スミスロウ'],
-  db:['ワンハンドダンベルロウ','ダンベルプルオーバー'],
-  iso:['アイソラテラルロウ','アイソラテラルプルダウン'],
-  machine:['マシンロウ','アシステッドチンニング'],
-  cable:['ラットプルダウン','シーテッドケーブルロウ','ストレートアームプルダウン'],
+  smith:['スミスロウ','スミスデッドリフト'],
+  db:['ワンハンドダンベルロウ','インクラインダンベルロウ','ダンベルプルオーバー'],
+  iso:['アイソラテラルロウ','アイソラテラルハイロウ','アイソラテラルローロウ','アイソラテラルプルダウン'],
+  machine:['マシンロウ','ハイロウ(マシン)','マシンプルダウン','プルオーバーマシン','アシステッドチンニング'],
+  cable:['ラットプルダウン','ワイドグリップラットプルダウン','シーテッドケーブルロウ','ワンハンドケーブルロウ','ストレートアームプルダウン'],
   bw:['懸垂(チンニング)','インバーテッドロウ']},
  delts_front:{
   bb:['バーベルショルダープレス','フロントレイズ(バーベル)'],
@@ -172,125 +238,116 @@ const CAT={
   bw:['パイクプッシュアップ']},
  delts_side:{
   bb:['アップライトロウ'],smith:['スミスアップライトロウ'],
-  db:['サイドレイズ','リーニングサイドレイズ'],
+  db:['サイドレイズ','シーテッドサイドレイズ','リーニングサイドレイズ'],
   iso:['アイソラテラルサイドレイズ'],
   machine:['ラテラルレイズマシン'],
-  cable:['ケーブルサイドレイズ'],
+  cable:['ケーブルサイドレイズ','ビハインドバックケーブルサイドレイズ'],
   bw:[]},
  delts_rear:{
   bb:[],smith:[],
   db:['リアレイズ(ダンベル)','ベントオーバーリアレイズ'],
   iso:['アイソラテラルリアデルトフライ'],
-  machine:['リアデルトフライ(マシン)'],
+  machine:['リアデルトフライ(マシン)','リバースペックデック'],
   cable:['ケーブルリアデルトフライ','フェイスプル'],
   bw:[]},
  traps:{
   bb:['バーベルシュラッグ'],smith:['スミスシュラッグ'],db:['ダンベルシュラッグ'],
-  iso:[],machine:[],
+  iso:['アイソラテラルシュラッグ'],machine:['シュラッグマシン'],
   cable:['ケーブルシュラッグ'],
   bw:[]},
  biceps:{
   bb:['バーベルカール','EZバーカール','プリーチャーカール(バーベル)'],
-  smith:[],
+  smith:['スミスドラッグカール'],
   db:['ダンベルカール','インクラインダンベルカール','ハンマーカール','コンセントレーションカール'],
   iso:['アイソラテラルカール'],
   machine:['プリーチャーカールマシン','マシンカール'],
-  cable:['ケーブルカール','ケーブルハンマーカール'],
+  cable:['ケーブルカール','ハイケーブルカール','ケーブルハンマーカール'],
   bw:['チンアップ(逆手懸垂)']},
  triceps:{
   bb:['クローズグリップベンチプレス','ライイングエクステンション(スカルクラッシャー)','フレンチプレス'],
   smith:['スミスクローズグリップベンチ'],
   db:['ダンベルオーバーヘッドエクステンション','ダンベルキックバック'],
-  iso:['トライセプスエクステンションマシン','ディップスマシン'],
-  machine:['グラビトロン(ディップス補助)'],
-  cable:['ローププッシュダウン','ケーブルプッシュダウン','オーバーヘッドケーブルエクステンション'],
+  iso:['アイソラテラルトライセプスエクステンション','ディップスマシン(プレートロード)'],
+  machine:['トライセプスエクステンションマシン','ディップスマシン','グラビトロン(ディップス補助)'],
+  cable:['ローププッシュダウン','ケーブルプッシュダウン','リバースグリッププッシュダウン','ワンハンドケーブルエクステンション','オーバーヘッドケーブルエクステンション'],
   bw:['ディップス','ナロー腕立て伏せ']},
  forearm:{
-  bb:['リストカール','リバースリストカール'],smith:[],db:['ダンベルリストカール'],
-  iso:[],machine:[],
+  bb:['リストカール','リバースリストカール','リバースカール(EZバー)'],smith:[],db:['ダンベルリストカール'],
+  iso:[],machine:['リストカールマシン'],
   cable:['ケーブルリストカール'],
   bw:[]},
  quads:{
   bb:['バックスクワット','フロントスクワット'],
-  smith:['スミススクワット','スミスハックスクワット'],
+  smith:['スミススクワット','スミスハックスクワット','スミスランジ','スミスブルガリアンスクワット'],
   db:['ゴブレットスクワット','ダンベルランジ'],
-  iso:['ハックスクワットマシン(プレートロード)'],
-  machine:['レッグエクステンション','レッグプレス'],
+  iso:['ハックスクワットマシン(プレートロード)','アイソラテラルレッグプレス'],
+  machine:['レッグプレス','レッグエクステンション','ハックスクワット(マシン)','ペンデュラムスクワット','Vスクワットマシン'],
   cable:[],
-  bw:['自重スクワット','ブルガリアンスクワット(自重)']},
+  bw:['自重スクワット','ブルガリアンスクワット(自重)','シシースクワット']},
  hams:{
   bb:['ルーマニアンデッドリフト','スティッフレッグデッドリフト'],
   smith:['スミスRDL'],
   db:['ダンベルルーマニアンデッドリフト'],
-  iso:[],
-  machine:['ライイングレッグカール','シーテッドレッグカール'],
+  iso:['アイソラテラルレッグカール'],
+  machine:['ライイングレッグカール','シーテッドレッグカール','スタンディングレッグカール'],
   cable:['ケーブルプルスルー','ケーブルレッグカール'],
-  bw:['ノルディックハムカール']},
+  bw:['ノルディックハムカール','グルートハムレイズ']},
  glutes:{
   bb:['バーベルヒップスラスト'],smith:['スミスヒップスラスト'],
   db:['ダンベルヒップスラスト','ダンベルランジ'],
   iso:['ヒップスラストマシン(プレートロード)'],
-  machine:['ヒップアブダクションマシン'],
+  machine:['ヒップアブダクションマシン','ヒップアダクションマシン(内転)','グルートキックバックマシン'],
   cable:['ケーブルキックバック','ケーブルヒップアブダクション'],
   bw:['ヒップリフト','ブルガリアンスクワット']},
  calves:{
   bb:['バーベルカーフレイズ'],smith:['スミスカーフレイズ'],db:['ダンベルカーフレイズ'],
   iso:['スタンディングカーフレイズマシン(プレートロード)'],
-  machine:['シーテッドカーフレイズ','スタンディングカーフレイズマシン'],
+  machine:['シーテッドカーフレイズ','スタンディングカーフレイズマシン','レッグプレスカーフレイズ'],
   cable:['ケーブルカーフレイズ'],
   bw:['自重カーフレイズ']},
  abs:{
   bb:['バーベルロールアウト'],smith:[],db:['ダンベルサイドベンド'],
-  iso:[],machine:['アブクランチマシン'],
+  iso:[],machine:['アブクランチマシン','ロータリートルソー'],
   cable:['ケーブルクランチ','ケーブルウッドチョップ'],
-  bw:['クランチ','レッグレイズ','プランク']},
+  bw:['クランチ','レッグレイズ','ハンギングレッグレイズ','プランク']},
 };
 const C={chest:'var(--chest)',back:'var(--back)',delts:'var(--delts)',legs:'var(--legs)',arms:'var(--arms)'};
 const DEFAULT=[
- {key:'chest',label:'胸',en:'CHEST',color:C.chest,weekday:1,focus:'胸(BB+DB+スミス+アイソラテラル+ケーブル) ・ 三頭(BB+ケーブル) ・ 腹',ex:[
-   ['バーベルベンチプレス','4 × 5–8','1–2','2–3分','','bb'],
-   ['インクラインダンベルプレス','3 × 8–12','1–2','2分','','db'],
-   ['スミスデクラインプレス','3 × 10–12','1–2','90秒','','smith'],
-   ['アイソラテラルチェストプレス','3 × 12–15','0–1','60秒','','iso'],
-   ['ケーブルクロスオーバー','3 × 12–15','0–1','60–90秒','','cable'],
-   ['クローズグリップベンチプレス','4 × 8–12','1–2','90秒','三頭','bb'],
+ {key:'chest',label:'胸',en:'CHEST',color:C.chest,weekday:1,focus:'胸4種 ・ 三頭1種 ・ 腹1種',ex:[
+   ['バーベルベンチプレス','4 × 5–8','1–2','180秒','','bb'],
+   ['インクラインダンベルプレス','3 × 8–12','1–2','150秒','','db'],
+   ['アイソラテラルチェストプレス','3 × 10–12','1–2','90秒','','iso'],
+   ['ケーブルクロスオーバー','3 × 12–15','0–1','60秒','','cable'],
    ['ローププッシュダウン','3 × 12–15','0–1','60秒','三頭','cable'],
    ['クランチ','3 × 15–20','0–1','60秒','腹','bw']]},
- {key:'back',label:'背中',en:'BACK',color:C.back,weekday:2,focus:'背中(自重+BB+スミス+DB+アイソラテラル+ケーブル) ・ 二頭(DB)',ex:[
-   ['懸垂(チンニング)','4 × 6–10','1–2','2分','','bw'],
-   ['バーベルロウ','4 × 6–10','1–2','2分','','bb'],
-   ['スミスロウ','3 × 8–12','1–2','90秒','','smith'],
+ {key:'back',label:'背中',en:'BACK',color:C.back,weekday:2,focus:'背中5種 ・ 二頭1種',ex:[
+   ['懸垂(チンニング)','4 × 6–10','1–2','180秒','','bw'],
+   ['バーベルロウ','4 × 6–10','1–2','150秒','','bb'],
+   ['ラットプルダウン','3 × 10–12','1–2','90秒','','cable'],
    ['ワンハンドダンベルロウ','3 × 10–12','1–2','90秒','','db'],
-   ['ラットプルダウン','3 × 10–12','0–1','90秒','','cable'],
    ['アイソラテラルロウ','3 × 12–15','0–1','60秒','','iso'],
    ['ハンマーカール','3 × 10–12','0–1','60秒','二頭','db']]},
- {key:'delts',label:'肩',en:'SHOULDERS',color:C.delts,weekday:4,focus:'肩(BB+DB+スミス+マシン+ケーブル) ・ 僧帽(BB)',note:'胸(月)から中1日空き。前部三角筋・三頭は回復済み。まだ痛むならプレスを3セットに減らしサイド/リアレイズ優先。',ex:[
-   ['バーベルオーバーヘッドプレス','4 × 6–10','1–2','2分','','bb'],
-   ['ダンベルショルダープレス','3 × 10–12','1–2','90秒','','db'],
-   ['スミスショルダープレス','3 × 8–12','1–2','90秒','','smith'],
-   ['ダンベルサイドレイズ','4 × 12–20','0–1','60秒','','db'],
-   ['ケーブルサイドレイズ','3 × 15–20','0–1','45–60秒','','cable'],
+ {key:'delts',label:'肩',en:'SHOULDERS',color:C.delts,weekday:4,focus:'プレス2種 ・ レイズ3種 ・ 僧帽1種',note:'胸の日から中1日。前部三角筋に疲れが残る場合はプレスを1セット減らしレイズ優先。',ex:[
+   ['バーベルオーバーヘッドプレス','4 × 6–10','1–2','180秒','','bb'],
+   ['ダンベルショルダープレス','3 × 8–12','1–2','120秒','','db'],
+   ['ダンベルサイドレイズ','4 × 12–15','0–1','60秒','','db'],
+   ['ケーブルサイドレイズ','3 × 15–20','0–1','60秒','','cable'],
    ['リアデルトフライ(マシン)','3 × 15–20','0–1','60秒','','machine'],
-   ['フェイスプル','3 × 15–20','0–1','60秒','','cable'],
-   ['バーベルシュラッグ','3 × 10–15','0–1','60秒','僧帽','bb']]},
- {key:'legs',label:'脚',en:'LEGS',color:C.legs,weekday:5,focus:'四頭(BB+スミス+マシン×2) ・ ハム(DB+マシン) ・ 臀部(BB) ・ カーフ(マシン)',note:'最も筋肉痛が出やすい日。スクワット・RDLは新規導入時は初回を軽めに。',ex:[
-   ['バーベルスクワット','4 × 5–8','1–2','2–3分','','bb'],
-   ['スミスハックスクワット','3 × 10–12','1–2','2分','','smith'],
-   ['レッグプレス','3 × 10–12','1–2','2分','','machine'],
-   ['レッグエクステンション','3 × 12–15','0–1','60–90秒','','machine'],
-   ['ダンベルルーマニアンデッドリフト','4 × 8–10','1–2','2分','','db'],
+   ['バーベルシュラッグ','3 × 10–15','0–1','90秒','僧帽','bb']]},
+ {key:'legs',label:'脚',en:'LEGS',color:C.legs,weekday:5,focus:'四頭3種 ・ ハム2種 ・ カーフ1種',note:'最も筋肉痛が出やすい日。スクワット・RDLの初回は軽めから。',ex:[
+   ['バーベルスクワット','4 × 5–8','1–2','180秒','','bb'],
+   ['レッグプレス','3 × 10–12','1–2','150秒','','machine'],
+   ['レッグエクステンション','3 × 12–15','0–1','90秒','','machine'],
+   ['ダンベルルーマニアンデッドリフト','3 × 8–10','1–2','150秒','','db'],
    ['ライイングレッグカール','3 × 10–12','0–1','90秒','','machine'],
-   ['バーベルヒップスラスト','3 × 10–12','1–2','90秒','臀部','bb'],
-   ['シーテッドカーフレイズ','3 × 12–15','0–1','60秒','カーフ','machine']]},
- {key:'arms',label:'腕',en:'ARMS',color:C.arms,weekday:6,focus:'二頭(BB+DB+マシン+ケーブル) ・ 三頭(BB+DB+マシン+ケーブル)',note:'翌日は休み。次週の胸まで三頭を回復させる配置。',ex:[
-   ['バーベルカール','4 × 6–10','1–2','90秒','二頭','bb'],
+   ['シーテッドカーフレイズ','4 × 12–15','0–1','60秒','カーフ','machine']]},
+ {key:'arms',label:'腕',en:'ARMS',color:C.arms,weekday:6,focus:'二頭3種 ・ 三頭3種(高重量→パンプの順)',note:'翌日は休み。三頭は次週の胸まで回復する配置。',ex:[
+   ['バーベルカール','4 × 6–10','1–2','120秒','二頭','bb'],
+   ['クローズグリップベンチプレス','4 × 6–10','1–2','150秒','三頭','bb'],
    ['インクラインダンベルカール','3 × 10–12','0–1','60秒','二頭','db'],
-   ['プリーチャーカールマシン','3 × 12–15','0–1','60秒','二頭','machine'],
+   ['ダンベルオーバーヘッドエクステンション','3 × 10–12','1–2','90秒','三頭','db'],
    ['ケーブルカール','3 × 12–15','0–1','60秒','二頭','cable'],
-   ['クローズグリップベンチプレス','4 × 6–10','1–2','90秒','三頭','bb'],
-   ['ダンベルオーバーヘッドエクステンション','3 × 10–12','1–2','60秒','三頭','db'],
-   ['ローププッシュダウン','3 × 12–15','0–1','45–60秒','三頭','cable'],
-   ['トライセプスエクステンションマシン','3 × 12–15','0–1','60秒','三頭','machine']]},
+   ['ローププッシュダウン','3 × 12–15','0–1','60秒','三頭','cable']]},
 ];
 const DEFAULT_SCHEDULE=['chest','back',null,'delts','legs','arms',null];
 
@@ -307,7 +364,7 @@ function todaySession(d,n){const h=LOGS[exKey(d,n)]||[],t=todayStr();return h.fi
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 /* ====== ストレージ(localStorage) ====== */
-let PROGRAM=[], LOGS={}, BW=[], BIG3={bench:[],squat:[],deadlift:[]}, SCHEDULE=[...DEFAULT_SCHEDULE], STORAGE_OK=false;
+let PROGRAM=[], LOGS={}, BW=[], BIG3={bench:[],squat:[],deadlift:[]}, SCHEDULE=[...DEFAULT_SCHEDULE], STORAGE_OK=false, MEMO={}, TIPDONE=false;
 function initStore(){
   try{localStorage.setItem('__t','1');localStorage.removeItem('__t');STORAGE_OK=true;
     PROGRAM=JSON.parse(localStorage.getItem('gym-program-v1')||'null')||clone(DEFAULT);
@@ -315,13 +372,33 @@ function initStore(){
     BW=JSON.parse(localStorage.getItem('gym-bw-v1')||'[]');
     BIG3=JSON.parse(localStorage.getItem('gym-big3-v1')||'null')||{bench:[],squat:[],deadlift:[]};
     SCHEDULE=JSON.parse(localStorage.getItem('gym-schedule-v1')||'null')||[...DEFAULT_SCHEDULE];
+    MEMO=JSON.parse(localStorage.getItem('gym-memo-v1')||'{}');
+    TIPDONE=localStorage.getItem('gym-tip-v1')==='1';
   }catch(e){STORAGE_OK=false;PROGRAM=clone(DEFAULT);}
 }
 const saveProgram=()=>{try{localStorage.setItem('gym-program-v1',JSON.stringify(PROGRAM));}catch(e){}};
+// ===== メニュー刷新v2への移行: 旧デフォルトのまま(=未カスタマイズ)の日だけ新メニューに差し替え =====
+const LEGACY_EX={"chest":"[[\"バーベルベンチプレス\",\"4 × 5–8\",\"1–2\",\"2–3分\",\"\",\"bb\"],[\"インクラインダンベルプレス\",\"3 × 8–12\",\"1–2\",\"2分\",\"\",\"db\"],[\"スミスデクラインプレス\",\"3 × 10–12\",\"1–2\",\"90秒\",\"\",\"smith\"],[\"アイソラテラルチェストプレス\",\"3 × 12–15\",\"0–1\",\"60秒\",\"\",\"iso\"],[\"ケーブルクロスオーバー\",\"3 × 12–15\",\"0–1\",\"60–90秒\",\"\",\"cable\"],[\"クローズグリップベンチプレス\",\"4 × 8–12\",\"1–2\",\"90秒\",\"三頭\",\"bb\"],[\"ローププッシュダウン\",\"3 × 12–15\",\"0–1\",\"60秒\",\"三頭\",\"cable\"],[\"クランチ\",\"3 × 15–20\",\"0–1\",\"60秒\",\"腹\",\"bw\"]]","back":"[[\"懸垂(チンニング)\",\"4 × 6–10\",\"1–2\",\"2分\",\"\",\"bw\"],[\"バーベルロウ\",\"4 × 6–10\",\"1–2\",\"2分\",\"\",\"bb\"],[\"スミスロウ\",\"3 × 8–12\",\"1–2\",\"90秒\",\"\",\"smith\"],[\"ワンハンドダンベルロウ\",\"3 × 10–12\",\"1–2\",\"90秒\",\"\",\"db\"],[\"ラットプルダウン\",\"3 × 10–12\",\"0–1\",\"90秒\",\"\",\"cable\"],[\"アイソラテラルロウ\",\"3 × 12–15\",\"0–1\",\"60秒\",\"\",\"iso\"],[\"ハンマーカール\",\"3 × 10–12\",\"0–1\",\"60秒\",\"二頭\",\"db\"]]","delts":"[[\"バーベルオーバーヘッドプレス\",\"4 × 6–10\",\"1–2\",\"2分\",\"\",\"bb\"],[\"ダンベルショルダープレス\",\"3 × 10–12\",\"1–2\",\"90秒\",\"\",\"db\"],[\"スミスショルダープレス\",\"3 × 8–12\",\"1–2\",\"90秒\",\"\",\"smith\"],[\"ダンベルサイドレイズ\",\"4 × 12–20\",\"0–1\",\"60秒\",\"\",\"db\"],[\"ケーブルサイドレイズ\",\"3 × 15–20\",\"0–1\",\"45–60秒\",\"\",\"cable\"],[\"リアデルトフライ(マシン)\",\"3 × 15–20\",\"0–1\",\"60秒\",\"\",\"machine\"],[\"フェイスプル\",\"3 × 15–20\",\"0–1\",\"60秒\",\"\",\"cable\"],[\"バーベルシュラッグ\",\"3 × 10–15\",\"0–1\",\"60秒\",\"僧帽\",\"bb\"]]","legs":"[[\"バーベルスクワット\",\"4 × 5–8\",\"1–2\",\"2–3分\",\"\",\"bb\"],[\"スミスハックスクワット\",\"3 × 10–12\",\"1–2\",\"2分\",\"\",\"smith\"],[\"レッグプレス\",\"3 × 10–12\",\"1–2\",\"2分\",\"\",\"machine\"],[\"レッグエクステンション\",\"3 × 12–15\",\"0–1\",\"60–90秒\",\"\",\"machine\"],[\"ダンベルルーマニアンデッドリフト\",\"4 × 8–10\",\"1–2\",\"2分\",\"\",\"db\"],[\"ライイングレッグカール\",\"3 × 10–12\",\"0–1\",\"90秒\",\"\",\"machine\"],[\"バーベルヒップスラスト\",\"3 × 10–12\",\"1–2\",\"90秒\",\"臀部\",\"bb\"],[\"シーテッドカーフレイズ\",\"3 × 12–15\",\"0–1\",\"60秒\",\"カーフ\",\"machine\"]]","arms":"[[\"バーベルカール\",\"4 × 6–10\",\"1–2\",\"90秒\",\"二頭\",\"bb\"],[\"インクラインダンベルカール\",\"3 × 10–12\",\"0–1\",\"60秒\",\"二頭\",\"db\"],[\"プリーチャーカールマシン\",\"3 × 12–15\",\"0–1\",\"60秒\",\"二頭\",\"machine\"],[\"ケーブルカール\",\"3 × 12–15\",\"0–1\",\"60秒\",\"二頭\",\"cable\"],[\"クローズグリップベンチプレス\",\"4 × 6–10\",\"1–2\",\"90秒\",\"三頭\",\"bb\"],[\"ダンベルオーバーヘッドエクステンション\",\"3 × 10–12\",\"1–2\",\"60秒\",\"三頭\",\"db\"],[\"ローププッシュダウン\",\"3 × 12–15\",\"0–1\",\"45–60秒\",\"三頭\",\"cable\"],[\"トライセプスエクステンションマシン\",\"3 × 12–15\",\"0–1\",\"60秒\",\"三頭\",\"machine\"]]"};
+function migrateMenu(){
+  if(!STORAGE_OK)return;
+  try{
+    if(localStorage.getItem('gym-menu-v2'))return;
+    PROGRAM.forEach(d=>{
+      const def=DEFAULT.find(x=>x.key===d.key);
+      if(def&&LEGACY_EX[d.key]===JSON.stringify(d.ex)){
+        d.ex=clone(def.ex);d.focus=def.focus;
+        if(def.note)d.note=def.note;else delete d.note;
+      }
+    });
+    localStorage.setItem('gym-menu-v2','1');saveProgram();
+  }catch(e){}
+}
+
 const saveLogs=()=>{try{localStorage.setItem('gym-logs-v1',JSON.stringify(LOGS));}catch(e){}};
 const saveBW=()=>{try{localStorage.setItem('gym-bw-v1',JSON.stringify(BW));}catch(e){}};
 const saveBIG3=()=>{try{localStorage.setItem('gym-big3-v1',JSON.stringify(BIG3));}catch(e){}};
 const saveSchedule=()=>{try{localStorage.setItem('gym-schedule-v1',JSON.stringify(SCHEDULE));}catch(e){}};
+const saveMemoStore=()=>{try{localStorage.setItem('gym-memo-v1',JSON.stringify(MEMO));}catch(e){}};
 
 /* ====== 状態 ====== */
 const todayWd=new Date().getDay();
@@ -332,7 +409,7 @@ const expanded=new Set();
 let activeExState=null;
 let hview='date'; let hpart='chest'; const expandedH=new Set();
 let tempSchedule=null;
-function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1700);}
+function toast(m,ms=1700){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),ms);}
 
 /* ====== ナビ・タブ ====== */
 const NAV=[['workout','🏋️','ワーク'],['history','📅','履歴'],['weight','⚖️','体重'],['info','ℹ️','概要']];
@@ -360,6 +437,13 @@ function renderWorkout(){
     <div class="focus">${day.ex.length}種目 ・ 合計 ${totalSets(day.ex)}セット</div>
     <div class="prog" style="margin-bottom:0">記録済み ${logged}/${day.ex.length} 種目</div>
     <div class="pbar"><i style="width:${day.ex.length?Math.round(logged/day.ex.length*100):0}%"></i></div>`;
+  if(!TIPDONE&&Object.keys(LOGS).length===0){
+    h+=`<div class="card" style="border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line));margin-bottom:14px;position:relative">
+      <button class="ic" style="position:absolute;top:8px;right:8px;font-size:16px;padding:4px 8px" onclick="hideTip()">✕</button>
+      <div style="font-weight:800;margin-bottom:6px">💡 はじめての方へ</div>
+      <div class="pv" style="line-height:1.8">「概要」タブでBIG3のMAXを登録すると、初めての種目でも重さを自動提案します。セットを記録すると休憩タイマーが自動で走り、2回目からは前回の重量・回数が自動入力されます。</div>
+    </div>`;
+  }
   day.ex.forEach((e,i)=>h+=card(day,e,i));
   if(!day.ex.length)h+=`<p style="color:var(--muted2);text-align:center;padding:24px 0">種目がありません。「✎ 編集」から追加してください。</p>`;
   document.getElementById('main').innerHTML=h;
@@ -384,8 +468,9 @@ function card(day,e,idx){
     <div class="head"><span class="name">${esc(name)}</span>${EQ_LABEL[eq]?`<span class="badge">${EQ_LABEL[eq]}</span>`:''}${tagv?`<span class="tag">${tagv}</span>`:''}</div>
     <div class="meta"><span class="chip"><span class="k">SET×REP</span>${sr}</span><span class="chip rir"><span class="k">RIR</span>${rir}</span><span class="chip"><span class="k">休息</span>${rest}</span></div>
     <div style="padding:0 13px 12px;border-top:1px solid var(--line)">
+      ${MEMO[exKey(day.key,name)]?`<div style="margin-bottom:8px"><span class="pv">📝 ${esc(MEMO[exKey(day.key,name)])}</span></div>`:''}
       <div style="margin-bottom:10px"><span style="font-size:.62rem;color:var(--muted2);font-weight:700;letter-spacing:.1em">前回 </span><span style="display:inline-flex;flex-wrap:wrap;gap:5px">${prevChips}</span></div>
-      <button class="btn" onclick="startEx('${day.key}',${idx})">▶ Start</button></div></div>`;
+      <div style="display:flex;gap:8px"><button class="btn" style="flex:1" onclick="startEx('${day.key}',${idx})">▶ Start</button>${prev?`<button class="btn g" style="flex:0 0 auto;padding:0 14px;font-size:.82rem" onclick="copyPrev('${day.key}',${idx})">前回コピー</button>`:''}</div></div></div>`;
 }
 
 function activeCard(day,e,idx,prev,n,step){
@@ -402,7 +487,7 @@ function activeCard(day,e,idx,prev,n,step){
     else if(confirmed.has(i))
       slist+=`<div class="setrow" onclick="gotoSet(${i})"><span class="sl" style="color:var(--up)">SET ${i+1} ✓</span><span class="sv">${s.w!=null?fmtW(s.w)+'kg':'–'} × ${s.r!=null?s.r+'回':'–'}</span><span class="se">✎ タップで修正</span></div>`;
     else
-      slist+=`<div class="setrow" onclick="gotoSet(${i})"><span class="sl" style="color:var(--muted2)">SET ${i+1}</span><span class="sv" style="color:var(--muted2);font-weight:600;font-size:.8rem">${ppv&&ppv.w!=null?fmtW(ppv.w)+'kg (前回)':'–'}</span></div>`;
+      slist+=`<div class="setrow" onclick="gotoSet(${i})"><span class="sl" style="color:var(--muted2)">SET ${i+1}</span><span class="sv" style="color:var(--muted2);font-weight:600;font-size:.8rem">${ppv&&ppv.w!=null?fmtW(ppv.w)+'kg (前回)':(activeExState.sug?fmtW(activeExState.sug)+'kg (推奨)':'–')}</span></div>`;
   }
   return `<div class="ex open" style="border-left-color:var(--accent);border-color:color-mix(in srgb,var(--accent) 55%,var(--line))">
     <div class="head"><span class="name">${esc(name)}</span>${EQ_LABEL[eq]?`<span class="badge">${EQ_LABEL[eq]}</span>`:''}${tagv?`<span class="tag">${tagv}</span>`:''}<button class="btn g" style="margin-left:auto;height:32px;padding:0 10px;font-size:.76rem" onclick="cancelEx()">✕ 中断</button></div>
@@ -410,25 +495,43 @@ function activeCard(day,e,idx,prev,n,step){
       <div style="background:color-mix(in srgb,var(--accent) 8%,var(--panel2));border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));border-radius:12px;padding:14px;margin-bottom:12px">
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px">
           <span style="font-size:2.2rem;font-weight:800;color:var(--accent);line-height:1">SET ${setIdx+1}<span style="font-size:1rem;color:var(--muted);font-weight:600"> / ${n}</span></span>
-          <span class="pv" style="text-align:right;line-height:1.7">前回<br>${pv?`<b style="color:var(--txt);font-size:.9rem">${fmtW(pv.w)}kg × ${pv.r??'–'}回</b>`:'記録なし'}</span>
+          <span class="pv" style="text-align:right;line-height:1.7">${pv?`前回<br><b style="color:var(--txt);font-size:.9rem">${fmtW(pv.w)}kg × ${pv.r??'–'}回</b>`:(activeExState.sug?`推奨(BIG3から算出)<br><b style="color:var(--accent);font-size:.9rem">${fmtW(activeExState.sug)}kg</b>`:'前回<br>記録なし')}</span>
         </div>
         <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
-          <div class="ins"><span class="u">重量</span><button class="sb" onclick="aAdj('w',${-step})">−</button><input id="aw" inputmode="decimal" value="${curW}" placeholder="${pv&&pv.w!=null?fmtW(pv.w):'kg'}" style="flex:1;height:58px;font-size:24px;font-weight:800;text-align:center;border-radius:12px;background:var(--bg);border:2px solid var(--accent);color:var(--txt);font-family:inherit"><button class="sb" onclick="aAdj('w',${step})">＋</button><span class="si">kg(±${step})</span></div>
+          <div class="ins"><span class="u">重量</span><button class="sb" onclick="aAdj('w',${-step})">−</button><input id="aw" inputmode="decimal" value="${curW}" oninput="updPlates()" placeholder="${pv&&pv.w!=null?fmtW(pv.w):'kg'}" style="flex:1;height:58px;font-size:24px;font-weight:800;text-align:center;border-radius:12px;background:var(--bg);border:2px solid var(--accent);color:var(--txt);font-family:inherit"><button class="sb" onclick="aAdj('w',${step})">＋</button><span class="si">kg(±${step})</span></div>
           <div class="ins"><span class="u">回数</span><button class="sb" onclick="aAdj('r',-1)">−</button><input id="ar" inputmode="numeric" value="${curR}" placeholder="${pv&&pv.r!=null?pv.r:'回'}" style="flex:1;height:58px;font-size:24px;font-weight:800;text-align:center;border-radius:12px;background:var(--bg);border:2px solid var(--accent);color:var(--txt);font-family:inherit"><button class="sb" onclick="aAdj('r',1)">＋</button><span class="si">回(±1)</span></div>
         </div>
+        ${eq==='bb'?`<div class="pv" id="plates" style="text-align:center;margin:-4px 0 10px;min-height:1em">${plateStr(curSet.w,eq)}</div>`:''}
         <button class="btn" style="width:100%;height:56px;font-size:1.02rem" onclick="${isFinal?'doneEx()':'nextSet()'}">✓ SET ${setIdx+1} 完了${isFinal?'して保存':''}</button>
         ${isFinal?'':`<button class="ic" style="width:100%;color:var(--muted2);text-decoration:underline;margin-top:8px;font-size:.78rem" onclick="doneEx()">ここまでで保存して終了</button>`}
       </div>
       <div style="padding:0 2px">${slist}</div>
+      <input id="memoIn" type="text" value="${esc(MEMO[exKey(day.key,name)]||'')}" placeholder="📝 メモ(シート高さ・グリップ幅など)" maxlength="60"
+        onchange="setMemoCur(this.value)"
+        style="width:100%;height:40px;margin-top:12px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);padding:0 12px;font-size:13px">
     </div>
   </div>`;
 }
 
+
+// 前回と同じ内容を今日の記録として1タップ保存
+function copyPrev(dk,idx){
+  const day=PROGRAM.find(d=>d.key===dk),e=day.ex[idx];
+  const prev=prevSession(dk,e[0]);if(!prev)return;
+  const k=exKey(dk,e[0]),hist=LOGS[k]||[],date=todayStr();
+  const en={date,sets:clone(prev.sets)};
+  const li=hist.findIndex(x=>x.date===date);
+  if(li>=0)hist[li]=en;else hist.push(en);
+  LOGS[k]=hist.slice(-50);saveLogs();
+  toast('前回と同じ内容で記録しました ✓');renderWorkout();
+}
 function startEx(dk,idx){
   const day=PROGRAM.find(d=>d.key===dk),e=day.ex[idx],n=setCount(e[1]);
   const prev=prevSession(dk,e[0]);
-  const sets=Array.from({length:n},(_,i)=>{const pv=prev&&prev.sets[i]?prev.sets[i]:null;return{w:pv&&pv.w!=null?pv.w:null,r:pv&&pv.r!=null?pv.r:null};});
-  activeExState={dk,idx,setIdx:0,sets,confirmed:new Set()};
+  const sug=prev?null:suggestW(e);           // 前回記録がある種目は実績を優先
+  const rlow=prev?null:repLow(e[1]);         // 初回は目標レップ下限をプリフィル
+  const sets=Array.from({length:n},(_,i)=>{const pv=prev&&prev.sets[i]?prev.sets[i]:null;return{w:pv&&pv.w!=null?pv.w:sug,r:pv&&pv.r!=null?pv.r:rlow};});
+  activeExState={dk,idx,setIdx:0,sets,confirmed:new Set(),sug};
   renderWorkout();
   setTimeout(()=>{const el=document.querySelector('.ex.open');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},60);
 }
@@ -446,11 +549,35 @@ function editEx(dk,idx){
   renderWorkout();
   setTimeout(()=>{const el=document.querySelector('.ex.open');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},60);
 }
+
+// バーベル(20kg)基準の片側プレート内訳
+function plateStr(w,eq){
+  if(eq!=='bb')return '';
+  w=parseFloat(w);if(w==null||isNaN(w)||w<=0)return '';
+  const bar=20;
+  if(w<=bar)return 'バー(20kg)のみ/以下';
+  let per=(w-bar)/2,out=[];
+  for(const p of [20,15,10,5,2.5,1.25]){while(per>=p-0.001){out.push(p);per-=p;}}
+  return `片側: ${out.join(' + ')||'—'}${per>0.01?' +端数':''}`;
+}
+function updPlates(){
+  const el=document.getElementById('plates');if(!el||!activeExState)return;
+  const day=PROGRAM.find(d=>d.key===activeExState.dk),e=day.ex[activeExState.idx];
+  el.textContent=plateStr(document.getElementById('aw')?.value,e[5]);
+}
+function setMemoCur(v){
+  if(!activeExState)return;
+  const day=PROGRAM.find(d=>d.key===activeExState.dk),e=day.ex[activeExState.idx];
+  const k=exKey(activeExState.dk,e[0]);
+  v=(v||'').trim();if(v)MEMO[k]=v;else delete MEMO[k];
+  saveMemoStore();
+}
 function aAdj(key,d){
   const el=document.getElementById(key==='w'?'aw':'ar');if(!el)return;
   let v=parseFloat(el.value);if(isNaN(v))v=0;
   v=key==='w'?Math.max(0,Math.round((v+d)*4)/4):Math.max(0,Math.round(v+d));
   el.value=key==='w'?fmtW(v):v;
+  if(key==='w')updPlates();
 }
 function readActive(){
   const wv=document.getElementById('aw')?.value||'',rv=document.getElementById('ar')?.value||'';
@@ -489,7 +616,16 @@ function doneEx(){
   const k=exKey(dk,e[0]),hist=LOGS[k]||[],date=todayStr(),li=hist.findIndex(s=>s.date===date);
   const en={date,sets};if(li>=0)hist[li]=en;else hist.push(en);
   LOGS[k]=hist.slice(-50);saveLogs();
-  activeExState=null;toast('記録しました ✓');
+  activeExState=null;
+  // 自己ベスト(推定1RM)判定
+  const e1=s2=>s2.w!=null&&s2.r?s2.w*(1+s2.r/30):0;
+  const bestOf=ss=>Math.max(0,...ss.map(e1));
+  const todayBest=bestOf(sets);
+  let prevBest=0;hist.forEach(h2=>{if(h2.date<date)prevBest=Math.max(prevBest,bestOf(h2.sets));});
+  if(prevBest>0&&todayBest>prevBest+0.01){
+    const r1=x=>Math.round(x*10)/10;
+    toast(`🎉 自己ベスト更新! 推定1RM ${r1(todayBest)}kg(+${r1(todayBest-prevBest)})`,3200);
+  }else toast('記録しました ✓');
   autoRest(dk,idx); // 次の種目までの休憩もタイマー開始
   renderWorkout();
   // 次の未記録種目へ自動スクロール
@@ -505,15 +641,18 @@ function clearExNew(dk,idx){
 
 /* ====== メニュー編集 ====== */
 const PALETTE=['#e5645b','#f0a23b','#e8c84a','#7bc95f','#37b59e','#4fc3d9','#5aa0e0','#9384ea','#c47ee0','#e07ab8','#e0806a','#9aa3b2'];
+let newDayKey=null;
 function addDay(){
   const key='d'+Date.now().toString(36);
   const color=PALETTE[PROGRAM.length%PALETTE.length];
   PROGRAM.push({key,label:'新メニュー',en:'',color,focus:'',ex:[]});
-  saveProgram();activeDay=key;activeExState=null;render();openEditor();
+  saveProgram();activeDay=key;activeExState=null;newDayKey=key;render();openEditor();
 }
-function eDelDay(){
+let delDayArm=false;
+function eDelDay(btn){
   if(PROGRAM.length<=1){toast('最後のメニューは削除できません');return;}
-  if(!confirm('このメニューを削除しますか?(過去の記録は履歴に残ります)'))return;
+  if(!delDayArm){delDayArm=true;btn.textContent='もう一度タップで削除(記録は履歴に残ります)';setTimeout(()=>{delDayArm=false;if(btn.isConnected)btn.textContent='このメニューを削除';},3000);return;}
+  delDayArm=false;newDayKey=null;
   PROGRAM=PROGRAM.filter(d=>d.key!==activeDay);
   SCHEDULE=SCHEDULE.map(k=>k===activeDay?null:k);
   saveProgram();saveSchedule();
@@ -526,7 +665,7 @@ function eColor(c){edit.color=c;renderEditor();}
 function renderEditor(){
   const day=PROGRAM.find(d=>d.key===activeDay);
   if(edit.view==='list'){
-    let h=`<h3 style="margin:0 0 10px">メニュー編集</h3>
+    let h=`<div style="display:flex;align-items:center;margin:0 0 10px"><h3 style="margin:0">メニュー編集</h3><button class="ic" style="margin-left:auto;font-size:18px;padding:6px 10px" onclick="closeSheet()">✕</button></div>
       <div class="sec" style="margin-top:0">メニュー名(自由に変更できます)</div>
       <input type="text" id="dayName" value="${esc(edit.label)}" oninput="edit.label=this.value" maxlength="20" placeholder="例: 胸+三頭, プッシュの日"
         style="width:100%;height:46px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);padding:0 14px;font-size:15px;font-weight:700;margin-bottom:6px">
@@ -538,13 +677,13 @@ function renderEditor(){
       <button class="ic" onclick="eEdit(${i})">✎</button><button class="ic" style="color:var(--down)" onclick="eDel(${i})">✕</button></div>`;});
     h+=`<button class="btn" style="margin-top:14px;width:100%;background:none;border:1px solid var(--accent);color:var(--accent)" onclick="eAdd()">＋ 種目を追加</button>
       <div class="saverow" style="margin-top:14px"><button class="btn" onclick="eCommit()">保存</button><button class="btn g" onclick="closeSheet()">取消</button></div>
-      <button class="danger" style="margin-top:12px" onclick="eDelDay()">このメニューを削除</button>`;
+      <button class="danger" style="margin-top:12px" onclick="eDelDay(this)">このメニューを削除</button>`;
     document.getElementById('sheet').innerHTML=h;
   } else { renderForm(); }
 }
 function eMove(i,d){const j=i+d;if(j<0||j>=edit.ex.length)return;[edit.ex[i],edit.ex[j]]=[edit.ex[j],edit.ex[i]];renderEditor();}
 function eDel(i){edit.ex.splice(i,1);renderEditor();}
-function eCommit(){const label=(edit.label||'').trim();PROGRAM=PROGRAM.map(d=>d.key===activeDay?{...d,ex:edit.ex,label:label||d.label,color:edit.color||d.color}:d);saveProgram();closeSheet();render();toast('メニューを保存');}
+function eCommit(){newDayKey=null;const label=(edit.label||'').trim();PROGRAM=PROGRAM.map(d=>d.key===activeDay?{...d,ex:edit.ex,label:label||d.label,color:edit.color||d.color}:d);saveProgram();closeSheet();render();toast('メニューを保存');}
 function eAdd(){Object.assign(edit,{view:'add',idx:-1,m:null,eq:null,name:'',custom:false,sets:3,reps:'8–12',rir:'1–2',rest:'90秒'});renderEditor();}
 function eEdit(i){const e=edit.ex[i];Object.assign(edit,{view:'edit',idx:i,m:null,eq:e[5],name:e[0],custom:false,sets:parseInt(e[1])||3,reps:(e[1].split('×')[1]||'8–12').trim(),rir:e[2],rest:e[3]});renderEditor();}
 function renderForm(){
@@ -560,7 +699,7 @@ function renderForm(){
     }
   }
   if(isEdit||(edit.m&&edit.eq)){
-    const REPS=['5–8','6–10','8–12','10–12','12–15','15–20'],RIRS=['0–1','1–2','2–3'],RESTS=['45–60秒','60秒','90秒','2分','2–3分'];
+    const REPS=['5–8','6–10','8–12','10–12','12–15','15–20'],RIRS=['0–1','1–2','2–3'],RESTS=['60秒','90秒','120秒','150秒','180秒'];
     h+=`<div class="sec">${isEdit?'①':'④'} 目標設定</div>
       <div class="pv" style="margin-bottom:6px">セット数: ${edit.sets}</div>
       <div class="ins" style="margin-bottom:6px"><button class="sb" onclick="eStep(-1)">−</button><span style="width:34px;text-align:center;font-weight:800;font-size:19px">${edit.sets}</span><button class="sb" onclick="eStep(1)">＋</button></div>
@@ -737,7 +876,7 @@ function exportCsv(){
 }
 let delArm=false;
 function delAll(btn){if(!delArm){delArm=true;btn.textContent='もう一度タップで全削除';setTimeout(()=>{delArm=false;btn.textContent='全データを削除';},3000);return;}
-  LOGS={};BW=[];BIG3={bench:[],squat:[],deadlift:[]};PROGRAM=clone(DEFAULT);saveLogs();saveBW();saveBIG3();saveProgram();delArm=false;activeDay=todayKey||'chest';renderInfo();toast('全データを削除しました');}
+  LOGS={};BW=[];BIG3={bench:[],squat:[],deadlift:[]};PROGRAM=clone(DEFAULT);MEMO={};saveMemoStore();saveLogs();saveBW();saveBIG3();saveProgram();delArm=false;activeDay=todayKey||'chest';renderInfo();toast('全データを削除しました');}
 
 /* ====== 休憩タイマー(ストップウォッチ＋アラート / iOSは音＋点滅) ====== */
 let tEl=0,tRun=false,tAlert=90,tFired=false,tInt=null,actx=null;
@@ -787,9 +926,20 @@ function openTimer(){renderTimer();showSheet();}
 function renderTimer(){
   const over=tEl>=tAlert;
   document.getElementById('sheet').innerHTML=`<div class="timer ${over?'over':''}" id="timerBox">
-    <div class="pv" style="text-align:center">休憩タイマー(ストップウォッチ)</div>
-    <div class="big">${mmss(tEl)}</div>
-    <div class="pv" style="text-align:center;margin-bottom:14px;${over?'color:var(--up)':''}">${over?`アラート経過 +${mmss(tEl-tAlert)}`:`アラートまで ${mmss(tAlert-tEl)}`}</div>
+    <div class="pv" style="text-align:center">休憩タイマー</div>
+    <div style="position:relative;width:200px;height:200px;margin:8px auto 12px">
+      <svg width="200" height="200" viewBox="0 0 200 200">
+        <circle cx="100" cy="100" r="86" fill="none" stroke="var(--panel2)" stroke-width="12"/>
+        <circle cx="100" cy="100" r="86" fill="none" stroke="${over?'var(--up)':'var(--accent)'}" stroke-width="12" stroke-linecap="round"
+          stroke-dasharray="540.4" stroke-dashoffset="${over?0:(-540.4*Math.min(1,tEl/tAlert)).toFixed(1)}" transform="rotate(-90 100 100)"/>
+      </svg>
+      <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px">
+        ${over
+          ?`<div style="font-size:.95rem;font-weight:800;color:var(--up)">✓ 休憩終了</div><div style="font-size:1.8rem;font-weight:800;color:var(--up);font-variant-numeric:tabular-nums">+${mmss(tEl-tAlert)}</div>`
+          :`<div style="font-size:2.4rem;font-weight:800;color:var(--txt);line-height:1.1;font-variant-numeric:tabular-nums">${mmss(tAlert-tEl)}</div><div class="pv">残り / 設定 ${mmss(tAlert)}</div>`}
+        <div class="pv">経過 ${mmss(tEl)}</div>
+      </div>
+    </div>
     <div class="saverow"><button class="btn" onclick="tToggle()">${tRun?'一時停止':'スタート'}</button><button class="btn g" onclick="tReset()">リセット</button></div>
     <div class="pv" style="margin:16px 0 8px;text-align:center">アラート時間: ${mmss(tAlert)}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:10px">
@@ -798,7 +948,7 @@ function renderTimer(){
       <button onclick="tAdj(15)" style="height:48px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);font-size:13px;font-weight:800">＋15s</button>
       <button onclick="tAdj(30)" style="height:48px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);font-size:13px;font-weight:800">＋30s</button>
     </div>
-    <div style="display:flex;justify-content:center;flex-wrap:wrap;gap:6px">${[60,90,120,180].map(p=>`<span class="pill ${tAlert===p?'on':''}" onclick="tPreset(${p})">${p}s</span>`).join('')}</div>
+    <div style="display:flex;justify-content:center;flex-wrap:wrap;gap:6px">${[60,90,120,150,180].map(p=>`<span class="pill ${tAlert===p?'on':''}" onclick="tPreset(${p})">${p}s</span>`).join('')}</div>
     <div style="text-align:center;margin-top:14px"><span class="pill ${AUTOTIMER?'on':''}" onclick="toggleAuto()">セット保存時に自動スタート: ${AUTOTIMER?'ON':'OFF'}</span></div>
     <div class="pv" style="text-align:center;margin-top:4px">ONにすると「SET完了」で種目の休息時間ぶんのタイマーが自動で走ります</div>
     <button class="btn g" style="width:100%;margin-top:14px" onclick="closeSheet()">閉じる</button></div>`;
@@ -812,10 +962,27 @@ function tReset(){tRun=false;clearInterval(tInt);tEl=0;tFired=false;updateMini()
 function tAdj(d){tAlert=Math.max(15,tAlert+d);tFired=tEl>=tAlert?tFired:false;updateMini();renderTimer();}
 function tPreset(p){tAlert=p;tFired=false;updateMini();renderTimer();}
 
+function hideTip(){TIPDONE=true;try{localStorage.setItem('gym-tip-v1','1');}catch(e){}renderWorkout();}
 /* ====== シート開閉 ====== */
 function showSheet(){document.getElementById('ov').classList.add('show');}
-function closeSheet(){document.getElementById('ov').classList.remove('show');}
+function closeSheet(){
+  document.getElementById('ov').classList.remove('show');
+  // 「＋追加」直後に保存せず閉じた場合は空メニューを破棄
+  if(newDayKey){
+    const d=PROGRAM.find(x=>x.key===newDayKey);
+    if(d&&d.ex.length===0&&d.label==='新メニュー'){
+      PROGRAM=PROGRAM.filter(x=>x.key!==newDayKey);
+      SCHEDULE=SCHEDULE.map(k=>k===newDayKey?null:k);
+      saveProgram();
+      if(activeDay===newDayKey)activeDay=PROGRAM[0].key;
+      render();
+    }
+    newDayKey=null;
+  }
+}
 document.getElementById('ov').addEventListener('click',e=>{if(e.target.id==='ov')closeSheet();});
+// 想定外のエラーで画面がスタックしないための自己回復
+window.addEventListener('error',()=>{try{document.getElementById('ov').classList.remove('show');newDayKey=null;toast('エラーが発生しました。操作をやり直してください');}catch(_e){}});
 
 /* ====== 履歴 ====== */
 function dayMeta(k){const d=PROGRAM.find(x=>x.key===k);return d?{label:d.label,color:d.color}:{label:k,color:'var(--muted)'};}
@@ -900,7 +1067,7 @@ function renderHistory(){
 }
 
 /* ====== 起動 ====== */
-initStore();
+initStore();migrateMenu();
 todayKey=SCHEDULE[todayWd===0?6:todayWd-1]||null;
 activeDay=todayKey||PROGRAM[0]?.key||'chest';
 hpart=todayKey||PROGRAM[0]?.key||'chest';
