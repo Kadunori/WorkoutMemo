@@ -65,7 +65,10 @@
   .wk-top{display:flex;align-items:center;gap:10px;margin-bottom:4px;}
   .wk-x{width:48px;height:48px;border-radius:14px;background:var(--panel);border:1px solid var(--line);color:var(--muted);font-size:18px;font-weight:800;flex:0 0 auto;}
   .wk-name{flex:1;font-weight:800;font-size:1.05rem;line-height:1.3;}
-  .wk-sets{display:flex;flex-direction:column;margin:10px 0 4px;}
+  /* セット一覧: 高さ上限つき内部スクロール(下の入力・ボタンと重ならない) */
+  .wk-sets{display:flex;flex-direction:column;margin:10px 0 4px;flex:0 0 auto;max-height:168px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-right:2px;}
+  .wk-sets::-webkit-scrollbar{width:3px;}
+  .wk-sets::-webkit-scrollbar-thumb{background:var(--line);border-radius:2px;}
   .srw{display:flex;align-items:center;gap:10px;height:48px;padding:0 4px 0 14px;border-radius:12px;background:var(--panel);border:1px solid var(--line);}
   .srw .sl{font-weight:800;font-size:.8rem;color:var(--muted2);min-width:58px;}
   .srw .sv{font-weight:700;font-size:.92rem;}
@@ -80,7 +83,19 @@
   .swp.arm::after{background:var(--down);}
   .swp.s{margin-bottom:6px;}
   .swp.s::after{border-radius:12px;padding-right:16px;font-size:.8rem;}
-  .wk-mid{flex:1;display:flex;flex-direction:column;justify-content:center;min-height:0;}
+  /* 入力エリア: 伸縮させず自然な高さで積む(余白は上下autoマージンで配分=重なり防止) */
+  .wk-mid{flex:0 0 auto;display:flex;flex-direction:column;margin-top:auto;margin-bottom:auto;padding:8px 0;}
+  .wk-done{flex:0 0 auto;}
+  /* 縦が短い端末ではボタン類を少し縮めてスクロールなしで収める */
+  @media(max-height:730px){
+    .wk-sets{max-height:112px;}
+    .stp button.pm{height:64px;width:64px;font-size:28px;}
+    .stp .val{height:64px;}
+    .stp .val .n{font-size:34px;line-height:64px;}
+    .wk-done{height:62px;font-size:1.1rem;}
+    .wk-memo{height:38px;}
+    .wk-sub{padding:8px 0 2px;}
+  }
   .wk-prev{text-align:center;color:var(--muted);font-size:.82rem;margin-bottom:6px;}
   .wk-prev b{color:var(--txt);}
   .stp{display:flex;align-items:center;gap:12px;margin:7px 0;}
@@ -677,6 +692,8 @@ function renderWk(){
     <input class="wk-memo" type="text" value="${esc(MEMO[exKey(W.dk,name)]||'')}" placeholder="📝 メモ(空にすると削除)" maxlength="60" oninput="setMemoCur(this.value)">
     <button class="wk-sub" style="color:var(--down)" onclick="wkClearToday()">🗑 この種目の今日の記録を全部削除</button>`;
   bindSwipes(el);
+  const cur=el.querySelector('.srw.cur');
+  if(cur)cur.scrollIntoView({block:'nearest'});
 }
 function wkAdj(k,d){
   if(!W)return;
