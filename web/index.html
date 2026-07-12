@@ -94,6 +94,27 @@
   .hsets{padding:0 0 10px 18px;}
   .hset{display:flex;justify-content:space-between;align-items:center;padding:5px 10px;margin-bottom:4px;border-radius:8px;background:var(--panel2);font-size:.84rem;color:var(--muted);}
   .hset b{color:var(--txt);font-weight:700;font-variant-numeric:tabular-nums;}
+  /* 前回比バッジ */
+  .diffb{display:inline-block;font-size:.7rem;font-weight:800;border-radius:6px;padding:2px 6px;vertical-align:middle;}
+  .diffb.up{color:var(--up);background:#16291c;}
+  .diffb.down{color:var(--down);background:#2a1715;}
+  .diffb.eq{color:var(--muted2);background:var(--panel2);}
+  .sdif{font-size:.72rem;font-weight:800;margin-left:8px;}
+  .sdif.up{color:var(--up);}.sdif.down{color:var(--down);}
+  .wdiff{font-weight:800;font-size:.82rem;margin-left:6px;}
+  /* セット追加行 */
+  .addrow{height:42px;border-radius:12px;border:1px dashed var(--line);background:none;color:var(--muted);font-weight:800;font-size:.85rem;width:100%;flex:0 0 auto;}
+  /* Info タイル */
+  .tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+  .stile{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:13px 14px;text-align:left;color:var(--txt);position:relative;}
+  .stile .tl{font-size:.64rem;font-weight:800;letter-spacing:.14em;color:var(--muted);}
+  .stile .tv{font-size:1.65rem;font-weight:900;font-variant-numeric:tabular-nums;line-height:1.25;margin-top:2px;}
+  .stile .tv small{font-size:.78rem;color:var(--muted);font-weight:700;}
+  .stile.total{background:color-mix(in srgb,var(--accent) 10%,var(--panel));border-color:color-mix(in srgb,var(--accent) 40%,var(--line));}
+  .stile .diffb{position:absolute;top:12px;right:12px;}
+  .rngs{display:flex;gap:6px;margin:0 0 10px;}
+  .rng{flex:1;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--muted);font-weight:800;font-size:.8rem;}
+  .rng.on{background:var(--accent);border-color:var(--accent);color:#0d0e11;}
   /* 左スワイプ削除 */
   .swp{position:relative;margin-bottom:12px;}
   .swp>*:first-child{position:relative;z-index:1;margin-bottom:0!important;width:100%;}
@@ -422,9 +443,12 @@ function todayStr(){const n=new Date();return `${n.getFullYear()}-${String(n.get
 function prevSession(d,n){const h=LOGS[exKey(d,n)]||[],t=todayStr();for(let i=h.length-1;i>=0;i--)if(h[i].date<t)return h[i];return null;}
 function todaySession(d,n){const h=LOGS[exKey(d,n)]||[],t=todayStr();return h.find(s=>s.date===t)||null;}
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const topW=sets=>Math.max(0,...sets.filter(s=>s.w!=null).map(s=>s.w));
+function bestSet(sets){let b=null;sets.forEach(s=>{if(s.w==null&&s.r==null)return;if(!b||(s.w??0)>(b.w??0)||((s.w??0)===(b.w??0)&&(s.r??0)>(b.r??0)))b=s;});return b;}
+function prevBefore(dk,name,date){const h=LOGS[exKey(dk,name)]||[];let p=null;h.forEach(s=>{if(s.date<date&&(!p||s.date>p.date))p=s;});return p;}
 
 /* ====== ストレージ(localStorage) ====== */
-let PROGRAM=[], LOGS={}, BW=[], BIG3={bench:[],squat:[],deadlift:[]}, SCHEDULE=[...DEFAULT_SCHEDULE], STORAGE_OK=false, MEMO={}, TIPDONE=false, LOC={};
+let PROGRAM=[], LOGS={}, BW=[], BIG3={bench:[],squat:[],deadlift:[]}, SCHEDULE=[...DEFAULT_SCHEDULE], STORAGE_OK=false, MEMO={}, LOC={};
 function initStore(){
   try{localStorage.setItem('__t','1');localStorage.removeItem('__t');STORAGE_OK=true;
     PROGRAM=JSON.parse(localStorage.getItem('gym-program-v1')||'null')||clone(DEFAULT);
@@ -434,7 +458,6 @@ function initStore(){
     SCHEDULE=JSON.parse(localStorage.getItem('gym-schedule-v1')||'null')||[...DEFAULT_SCHEDULE];
     MEMO=JSON.parse(localStorage.getItem('gym-memo-v1')||'{}');
     LOC=JSON.parse(localStorage.getItem('gym-loc-v1')||'{}');
-    TIPDONE=localStorage.getItem('gym-tip-v1')==='1';
   }catch(e){STORAGE_OK=false;PROGRAM=clone(DEFAULT);}
 }
 const saveProgram=()=>{try{localStorage.setItem('gym-program-v1',JSON.stringify(PROGRAM));}catch(e){}};
@@ -513,23 +536,15 @@ function renderHome(){
   const n=new Date();
   let h=`<div class="dh"><div><div class="eyebrow" style="color:${day.color}">MEMO ・ ${n.getMonth()+1}/${n.getDate()} ${['日','月','火','水','木','金','土'][todayWd]}曜日</div><h2 style="margin-bottom:2px">${esc(day.label)}</h2></div>
     <button class="editbtn" onclick="openEditor()">✎ 編集</button></div>
-    <div class="pv" style="margin-top:2px">記録済み ${logged}/${day.ex.length} 種目 ・ 合計 ${totalSets(day.ex)}セット</div>
-    <div class="pbar"><i style="width:${day.ex.length?Math.round(logged/day.ex.length*100):0}%"></i></div>`;
+    <div style="display:flex;align-items:center;gap:10px;margin:6px 0 12px"><div class="pbar" style="flex:1;margin:0"><i style="width:${day.ex.length?Math.round(logged/day.ex.length*100):0}%"></i></div><span class="pv" style="font-weight:800;flex:0 0 auto">${logged}/${day.ex.length}</span></div>`;
   const loc=LOC[todayStr()];
-  h+=`<button class="locchip ${loc?'set':''}" onclick="openLocSheet()">📍 ${loc?esc(loc.name||'現在地(名前なし)')+(loc.lat!=null?' ✓GPS':''):'今日の場所をメモ'}</button>`;
+  h+=`<button class="locchip ${loc?'set':''}" onclick="openLocSheet()">📍 ${loc?esc(loc.name||'GPS')+(loc.lat!=null?' ✓':''):'場所'}</button>`;
   if(nextIdx>=0&&day.ex.length)
-    h+=`<button class="startall" onclick="openWorkout('${day.key}',${nextIdx})">${logged?'▶ 続きから記録する':'▶ ワークアウト開始'}</button>`;
+    h+=`<button class="startall" onclick="openWorkout('${day.key}',${nextIdx})">${logged?'▶ 続きから':'▶ 開始'}</button>`;
   else if(day.ex.length)
-    h+=`<div class="card" style="text-align:center;border-color:color-mix(in srgb,var(--up) 40%,var(--line))"><div style="font-size:1.5rem">🎉</div><div style="font-weight:800;margin-top:2px">今日のメニュー完了!</div></div>`;
-  if(!TIPDONE&&Object.keys(LOGS).length===0){
-    h+=`<div class="card" style="border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line));position:relative">
-      <button style="position:absolute;top:8px;right:8px;font-size:16px;padding:6px 10px;background:none;border:none;color:var(--muted)" onclick="hideTip()">✕</button>
-      <div style="font-weight:800;margin-bottom:6px">💡 はじめての方へ</div>
-      <div class="pv" style="line-height:1.8">「Info」タブでBIG3のMAXを登録すると、初めての種目でも重さを自動提案します。セット完了で休憩タイマーが自動で走り、2回目からは前回の重量・回数が自動入力されます。</div>
-    </div>`;
-  }
+    h+=`<div class="card" style="text-align:center;border-color:color-mix(in srgb,var(--up) 40%,var(--line));padding:12px"><div style="font-weight:800">🎉 今日のメニュー完了</div></div>`;
   day.ex.forEach((e,i)=>h+=homeCard(day,e,i,i===nextIdx));
-  if(!day.ex.length)h+=`<div style="text-align:center;padding:20px 0"><p style="color:var(--muted2);margin:0 0 14px">まだ種目がありません。<br>このメニューでやる種目を自分で組みましょう。</p><button class="btn" style="width:100%;height:56px" onclick="openEditor()">＋ 種目を追加する</button></div>`;
+  if(!day.ex.length)h+=`<button class="btn" style="width:100%;height:56px;margin-top:8px" onclick="openEditor()">＋ 種目を追加</button>`;
   document.getElementById('main').innerHTML=h;
   bindSwipes(document.getElementById('main'));
 }
@@ -540,12 +555,14 @@ function homeCard(day,e,idx,isNext){
   const prev=prevSession(day.key,name),te=todaySession(day.key,name);
   const badges=`${EQ_LABEL[eq]?`<span class="badge">${EQ_LABEL[eq]}</span>`:''}${tagv?`<span class="tag">${tagv}</span>`:''}`;
   if(te){
-    const sum=te.sets.filter(s=>s.w!=null||s.r!=null).map((s,i)=>`<span class="chip"><span class="k">S${i+1}</span>${s.w!=null?fmtW(s.w)+'kg':'–'}×${s.r!=null?s.r:'–'}</span>`).join('');
-    return `<div class="swp" data-del="ex:${day.key}:${idx}"><button class="xc done" onclick="openWorkout('${day.key}',${idx},true)">
-      <span class="st" style="color:var(--up)">✓ 完了</span>
-      <div class="nm">${esc(name)} ${badges}</div>
-      <div class="sub">${sum||'<span class="pv">データなし</span>'}</div>
-      <div class="cpv" style="font-size:.72rem;color:var(--muted2)">タップで修正 ・ ←スワイプで削除　<span style="color:var(--down);font-weight:700" onclick="event.stopPropagation();delTodayEx('${day.key}',${idx})">🗑 記録を削除</span></div></button></div>`;
+    const bs=bestSet(te.sets);
+    return `<div class="swp" data-del="ex:${day.key}:${idx}"><button class="xc done" style="padding:13px 14px" onclick="openWorkout('${day.key}',${idx},true)">
+      <div class="nm" style="font-size:.95rem;display:flex;align-items:center;gap:8px">
+        <span style="color:var(--up);flex:0 0 auto">✓</span>
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</span>
+        <span style="flex:0 0 auto;font-weight:800;font-size:.88rem;font-variant-numeric:tabular-nums">${bs?`${bs.w!=null?fmtW(bs.w)+'kg':''}${bs.r!=null?' × '+bs.r:''}`:''}</span>
+        <span style="flex:0 0 auto;color:var(--muted2);padding:2px 4px" onclick="event.stopPropagation();delTodayEx('${day.key}',${idx})">🗑</span>
+      </div></button></div>`;
   }
   const prevTxt=prev
     ?`前回 <b style="color:var(--txt)">${prev.sets.filter(s=>s.w!=null||s.r!=null).map(s=>`${s.w!=null?fmtW(s.w):'–'}×${s.r!=null?s.r:'–'}`).join(' / ')}</b>`
@@ -691,9 +708,9 @@ function renderWk(){
       <div class="wk-name">${esc(name)}<div style="font-size:.72rem;color:var(--muted);font-weight:600">${sr} ・ 休憩 ${rest}</div></div>
       <span style="font-size:1.4rem;font-weight:900;color:var(--accent);flex:0 0 auto">${W.setIdx+1}<span style="font-size:.85rem;color:var(--muted)">/${n}</span></span>
     </div>
-    <div class="wk-sets">${rows}</div>
+    <div class="wk-sets">${rows}<button class="addrow" onclick="wkAddSet()">＋ セット追加</button></div>
     <div class="wk-mid">
-      <div class="wk-prev">${prevTxt}</div>
+      <div class="wk-prev">${prevTxt}<span id="wkDiff">${wkDiffTxt()}</span></div>
       <div class="stp">
         <span class="lb">重量<br>kg</span>
         <button class="pm" onclick="wkAdj('w',${-step})">−</button>
@@ -728,6 +745,30 @@ function wkAdj(k,d){
   const el=document.getElementById(k==='w'?'wv':'rv');
   if(el&&el.querySelector('.n'))el.querySelector('.n').textContent=k==='w'?(s.w!=null?fmtW(s.w):'—'):(s.r!=null?s.r:'—');
   const p=document.getElementById('wkPlates');if(p&&k==='w')p.textContent=plateStr(s.w,wkEx()[5]);
+  const df=document.getElementById('wkDiff');if(df)df.innerHTML=wkDiffTxt();
+}
+// 入力中の値と前回同セットの差分(重量優先、同重量なら回数)
+function wkDiffTxt(){
+  if(!W)return '';
+  const e=wkEx(),prev=prevSession(W.dk,e[0]);
+  const pv=prev&&prev.sets[W.setIdx]?prev.sets[W.setIdx]:null;
+  const s=W.sets[W.setIdx]||{};
+  if(!pv||pv.w==null||s.w==null)return '';
+  const d=Math.round((s.w-pv.w)*10)/10;
+  if(d>0)return `<span class="wdiff" style="color:var(--up)">▲ +${fmtW(d)}kg</span>`;
+  if(d<0)return `<span class="wdiff" style="color:var(--down)">▼ ${fmtW(d)}kg</span>`;
+  const dr=(s.r??0)-(pv.r??0);
+  if(dr>0)return `<span class="wdiff" style="color:var(--up)">▲ +${dr}回</span>`;
+  if(dr<0)return `<span class="wdiff" style="color:var(--down)">▼ ${dr}回</span>`;
+  return `<span class="wdiff" style="color:var(--muted2)">±0</span>`;
+}
+// 調子が良い日にセットを増やす(直近セットの値を引き継ぎ)
+function wkAddSet(){
+  if(!W||W.phase!=='input')return;
+  const last=W.sets[W.sets.length-1]||{w:null,r:null};
+  W.sets.push({w:last.w,r:last.r});
+  vib();renderWk();
+  const sc=document.querySelector('.wk-sets');if(sc)sc.scrollTop=sc.scrollHeight;
 }
 function wkEditNum(k){
   if(!W)return;
@@ -1023,93 +1064,122 @@ function eFinish(){
   edit.view='list';renderEditor();
 }
 
-/* ====== からだ(体重 + BIG3) ====== */
+/* ====== Info(BIG3 + 体重) ====== */
 const BIG3_KEYS=['bench','squat','deadlift'];
 const BIG3_LABELS={bench:'ベンチプレス',squat:'スクワット',deadlift:'デッドリフト'};
+const BIG3_SHORT={bench:'BENCH',squat:'SQUAT',deadlift:'DEADLIFT'};
+const BIG3_COLORS={bench:'var(--chest)',squat:'var(--legs)',deadlift:'var(--back)'};
+let bwRange='3m';
+function setBwRange(r){bwRange=r;renderBody();}
+function bwFiltered(){
+  const data=[...BW].sort((a,b)=>a.date.localeCompare(b.date));
+  if(bwRange==='all')return data;
+  const days=bwRange==='1m'?30:90;
+  const c=new Date(Date.now()-days*864e5);
+  const cs=`${c.getFullYear()}-${String(c.getMonth()+1).padStart(2,'0')}-${String(c.getDate()).padStart(2,'0')}`;
+  return data.filter(d=>d.date>=cs);
+}
+function lineSvg(vals,color,Wd,H){
+  const mn=Math.min(...vals),mx=Math.max(...vals),pad=(mx-mn)*0.15||1,lo=mn-pad,hi=mx+pad;
+  const X=i=>15+i/(vals.length-1)*Wd,Y=v=>10+(1-(v-lo)/(hi-lo))*(H-30);
+  return `<svg width="${Wd+30}" height="${H}" style="display:block;width:100%;overflow:visible">
+    <text x="18" y="${Y(mx)-4}" fill="var(--muted2)" font-size="10">${fmtW(mx)}kg</text>
+    <text x="18" y="${Y(mn)+12}" fill="var(--muted2)" font-size="10">${fmtW(mn)}kg</text>
+    <polyline points="${vals.map((v,i)=>`${X(i)},${Y(v)}`).join(' ')}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round"/>
+    ${vals.map((v,i)=>`<circle cx="${X(i)}" cy="${Y(v)}" r="${i===vals.length-1?4:2.5}" fill="${color}"/>`).join('')}</svg>`;
+}
+// BIG3を3本の色分け線で1枚に
+function big3Chart(){
+  const series=BIG3_KEYS.map(k=>({k,recs:[...(BIG3[k]||[])].sort((a,b)=>a.date.localeCompare(b.date))}));
+  const dates=[...new Set(series.flatMap(s=>s.recs.map(r=>r.date)))].sort();
+  const all=series.flatMap(s=>s.recs.map(r=>r.kg));
+  if(dates.length<2)return '';
+  const Wd=Math.min(440,(document.querySelector('.app')?.clientWidth||360)-66),H=160;
+  const mn=Math.min(...all),mx=Math.max(...all),pad=(mx-mn)*0.12||5,lo=mn-pad,hi=mx+pad;
+  const X=d=>15+(dates.length<2?0:dates.indexOf(d)/(dates.length-1))*Wd,Y=v=>12+(1-(v-lo)/(hi-lo))*(H-34);
+  let ln='';
+  series.forEach(s=>{
+    if(!s.recs.length)return;
+    ln+=`<polyline points="${s.recs.map(r=>`${X(r.date)},${Y(r.kg)}`).join(' ')}" fill="none" stroke="${BIG3_COLORS[s.k]}" stroke-width="2.5" stroke-linejoin="round"/>`;
+    ln+=s.recs.map(r=>`<circle cx="${X(r.date)}" cy="${Y(r.kg)}" r="3" fill="${BIG3_COLORS[s.k]}"/>`).join('');
+  });
+  const legend=BIG3_KEYS.map(k=>`<span class="pv" style="display:inline-flex;align-items:center;gap:5px;margin-right:12px"><i style="width:8px;height:8px;border-radius:50%;background:${BIG3_COLORS[k]};display:inline-block"></i>${BIG3_SHORT[k]}</span>`).join('');
+  return `<div class="card"><div style="margin-bottom:6px">${legend}</div><svg width="${Wd+30}" height="${H}">
+    <text x="15" y="${Y(mx)-4}" fill="var(--muted2)" font-size="10">${fmtW(mx)}</text>
+    <text x="15" y="${Y(mn)+12}" fill="var(--muted2)" font-size="10">${fmtW(mn)}</text>${ln}</svg></div>`;
+}
 function renderBody(){
   document.getElementById('tabsWrap').innerHTML='';
   document.documentElement.style.setProperty('--accent','#f0a23b');
-  const data=[...BW].sort((a,b)=>a.date.localeCompare(b.date)),recent=data.slice(-30);
-  const latest=data[data.length-1],first=data[0];
-  const chg=latest&&first?Math.round((latest.kg-first.kg)*10)/10:0;
-  let chart='<p style="color:var(--muted2);text-align:center;padding:14px 0">2回以上記録するとグラフが出ます。</p>';
-  if(recent.length>=2){
-    const Wd=Math.min(440,(document.querySelector('.app').clientWidth||360)-66),H=150;
-    const ks=recent.map(d=>d.kg),mn=Math.min(...ks),mx=Math.max(...ks),pad=(mx-mn)*0.15||1,lo=mn-pad,hi=mx+pad;
-    const X=i=>15+i/(recent.length-1)*Wd, Y=k=>10+(1-(k-lo)/(hi-lo))*(H-30);
-    const pts=recent.map((d,i)=>`${X(i)},${Y(d.kg)}`).join(' ');
-    chart=`<svg width="${Wd+30}" height="${H}">
-      <line x1="15" y1="${Y(mx)}" x2="${Wd+15}" y2="${Y(mx)}" stroke="var(--line)" stroke-dasharray="3 4"/>
-      <line x1="15" y1="${Y(mn)}" x2="${Wd+15}" y2="${Y(mn)}" stroke="var(--line)" stroke-dasharray="3 4"/>
-      <text x="18" y="${Y(mx)-4}" fill="var(--muted2)" font-size="10">${mx}kg</text>
-      <text x="18" y="${Y(mn)+12}" fill="var(--muted2)" font-size="10">${mn}kg</text>
-      <polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>
-      ${recent.map((d,i)=>`<circle cx="${X(i)}" cy="${Y(d.kg)}" r="${i===recent.length-1?4:2.5}" fill="var(--accent)"/>`).join('')}</svg>`;
-  }
-  let big3h='';
-  BIG3_KEYS.forEach((k,idx)=>{
-    const recs=BIG3[k]||[];
-    const last=recs[recs.length-1];
-    const isLast=idx===BIG3_KEYS.length-1;
-    big3h+=`<div style="${isLast?'':'padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--line)'}">
-      <div style="font-weight:700;font-size:1rem;margin-bottom:6px">${BIG3_LABELS[k]}</div>
-      ${last?`<div class="pv" style="margin-bottom:8px">最新: <strong style="color:var(--txt)">${fmtW(last.kg)} kg</strong> <span style="color:var(--muted2)">(${last.date})</span></div>`:'<div class="pv" style="margin-bottom:8px;color:var(--muted2)">未記録</div>'}
-      <div style="display:flex;align-items:center;gap:8px">
-        <input type="number" id="big3-${k}" value="${last?last.kg:''}" placeholder="kg" step="0.5" inputmode="decimal"
-          style="width:86px;height:48px;text-align:center;border-radius:10px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);font-size:18px;font-weight:700">
-        <span style="color:var(--muted2)">kg</span>
-        <button class="btn" style="height:48px;padding:0 18px;flex:0 0 auto" onclick="addBig3('${k}')">記録</button>
-        ${recs.length>=1?`<button class="btn g" style="height:48px;padding:0 14px" onclick="showBig3History('${k}')">推移</button>`:''}
-      </div></div>`;
+  // BIG3 タイル
+  let tiles='';
+  BIG3_KEYS.forEach(k=>{
+    const recs=BIG3[k]||[],last=recs[recs.length-1],prev=recs[recs.length-2];
+    const d=last&&prev?Math.round((last.kg-prev.kg)*10)/10:null;
+    tiles+=`<button class="stile" style="border-left:4px solid ${BIG3_COLORS[k]}" onclick="big3Sheet('${k}')">
+      <div class="tl">${BIG3_SHORT[k]}</div>
+      <div class="tv">${last?fmtW(last.kg):'–'}<small> kg</small></div>
+      ${d?`<span class="diffb ${d>0?'up':'down'}">${d>0?'▲ +':'▼ '}${fmtW(Math.abs(d))}</span>`:''}
+    </button>`;
   });
+  const tot=BIG3_KEYS.every(k=>(BIG3[k]||[]).length)?BIG3_KEYS.reduce((a,k)=>a+BIG3[k][BIG3[k].length-1].kg,0):null;
+  tiles+=`<div class="stile total"><div class="tl">TOTAL</div><div class="tv">${tot!=null?fmtW(Math.round(tot*10)/10):'–'}<small> kg</small></div></div>`;
+  // 体重
+  const data=bwFiltered(),allData=[...BW].sort((a,b)=>a.date.localeCompare(b.date));
+  const latest=allData[allData.length-1],prevW=allData[allData.length-2];
+  const dW=latest&&prevW?Math.round((latest.kg-prevW.kg)*10)/10:null;
+  const Wd=Math.min(440,(document.querySelector('.app')?.clientWidth||360)-66);
+  const bwChart=data.length>=2?`<div class="card">${lineSvg(data.map(d=>d.kg),'var(--accent)',Wd,150)}</div>`:'';
   document.getElementById('main').innerHTML=`
-   <div class="eyebrow" style="color:var(--accent)">BODY & BIG3</div><h2>Info</h2>
-   <div class="card"><h3>🏆 BIG3 MAX</h3><p class="pv" style="margin:0 0 12px">登録すると初めての種目でも推奨重量を自動提案します。</p>${big3h}</div>
-   <div class="card"><div class="pv" style="margin-bottom:10px">今日の体重(${todayStr().slice(5).replace('-','/')})</div>
-     <div class="ins"><input id="bwin" inputmode="decimal" placeholder="kg" style="flex:1;height:52px;font-size:20px"><span class="u" style="width:auto">kg</span>
-       <button class="btn" style="flex:0 0 auto;padding:0 20px;height:52px" onclick="addBw()">記録</button></div></div>
-   ${latest?`<div style="display:flex;gap:10px;margin-bottom:12px">
-     <div class="card" style="flex:1;text-align:center;margin:0;padding:12px"><div class="pv">現在</div><div style="font-size:18px;font-weight:800;margin-top:2px">${latest.kg}kg</div></div>
-     <div class="card" style="flex:1;text-align:center;margin:0;padding:12px"><div class="pv">開始から</div><div style="font-size:18px;font-weight:800;margin-top:2px;color:${chg>0?'var(--up)':chg<0?'var(--down)':'var(--muted)'}">${chg>=0?'+':''}${chg}kg</div></div>
-     <div class="card" style="flex:1;text-align:center;margin:0;padding:12px"><div class="pv">記録数</div><div style="font-size:18px;font-weight:800;margin-top:2px">${data.length}回</div></div></div>`:''}
-   <div class="card">${chart}</div>
-   <h3 style="margin:18px 0 6px;font-size:1rem">体重の記録一覧</h3>
-   ${[...data].reverse().slice(0,30).map(d=>`<div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line)"><span class="pv">${d.date}</span><span style="font-weight:700">${d.kg} kg</span></div>`).join('')||'<p style="color:var(--muted2)">まだ記録がありません。</p>'}`;
+   <div class="eyebrow" style="color:var(--accent)">BIG3 MAX</div><h2>Info</h2>
+   <div class="tiles">${tiles}</div>
+   ${big3Chart()}
+   <div class="eyebrow" style="color:var(--accent);margin-top:20px">WEIGHT</div>
+   <div class="card" style="margin-top:6px">
+     <div style="display:flex;align-items:center;gap:10px">
+       <span style="font-size:1.65rem;font-weight:900;font-variant-numeric:tabular-nums">${latest?latest.kg:'–'}<small style="font-size:.78rem;color:var(--muted);font-weight:700"> kg</small></span>
+       ${dW?`<span class="diffb ${dW>0?'up':'down'}">${dW>0?'▲ +':'▼ '}${Math.abs(dW)}</span>`:''}
+       <span style="flex:1"></span>
+       <input id="bwin" inputmode="decimal" placeholder="${latest?latest.kg:'kg'}" style="width:90px;height:48px;text-align:center;border-radius:10px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);font-size:18px;font-weight:700">
+       <button class="btn" style="flex:0 0 auto;height:48px;padding:0 18px" onclick="addBw()">記録</button>
+     </div>
+   </div>
+   <div class="rngs">${[['1m','1ヶ月'],['3m','3ヶ月'],['all','全期間']].map(([r,l])=>`<button class="rng ${bwRange===r?'on':''}" onclick="setBwRange('${r}')">${l}</button>`).join('')}</div>
+   ${bwChart||'<p class="pv" style="text-align:center;padding:16px 0">記録が2回以上でグラフ表示</p>'}
+   ${[...data].reverse().slice(0,10).map(d=>`<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)"><span class="pv">${d.date}</span><b style="font-variant-numeric:tabular-nums">${d.kg} kg</b></div>`).join('')}`;
 }
 function addBw(){const v=parseFloat(document.getElementById('bwin').value);if(isNaN(v)||v<=0)return;
-  const date=todayStr();BW=[...BW.filter(x=>x.date!==date),{date,kg:Math.round(v*10)/10}];saveBW();renderBody();toast('体重を記録');}
+  const date=todayStr();BW=[...BW.filter(x=>x.date!==date),{date,kg:Math.round(v*10)/10}];saveBW();renderBody();toast('体重を記録 ✓');}
 function addBig3(k){
-  const inp=document.getElementById('big3-'+k);
+  const inp=document.getElementById('big3in-'+k);
   const v=parseFloat(inp.value);
   if(isNaN(v)||v<=0){toast('重量を入力してください');return;}
   const date=todayStr();
   BIG3[k]=[...(BIG3[k]||[]).filter(x=>x.date!==date),{date,kg:Math.round(v*10)/10}];
   BIG3[k].sort((a,b)=>a.date.localeCompare(b.date));
-  saveBIG3();toast('記録しました ✓');renderBody();
+  saveBIG3();toast('記録しました ✓');renderBody();big3Sheet(k);
 }
-function showBig3History(k){
+function big3Sheet(k){
   const data=[...(BIG3[k]||[])].sort((a,b)=>a.date.localeCompare(b.date));
-  if(!data.length){toast('記録がありません');return;}
-  const recent=data.slice(-20);
-  let chart='<p style="color:var(--muted2);text-align:center;padding:14px 0">2回以上記録するとグラフが出ます。</p>';
-  if(recent.length>=2){
-    const Wd=Math.min(340,(document.querySelector('.app')||{clientWidth:340}).clientWidth-50),H=150;
-    const ks=recent.map(d=>d.kg),mn=Math.min(...ks),mx=Math.max(...ks);
-    const pad=(mx-mn)*0.15||5,lo=mn-pad,hi=mx+pad;
-    const X=i=>15+i/(recent.length-1)*Wd, Y=kg=>10+(1-(kg-lo)/(hi-lo))*(H-30);
-    const pts=recent.map((d,i)=>`${X(i)},${Y(d.kg)}`).join(' ');
-    chart=`<svg width="${Wd+30}" height="${H}" style="display:block;width:100%;overflow:visible">
-      <line x1="15" y1="${Y(mx)}" x2="${Wd+15}" y2="${Y(mx)}" stroke="var(--line)" stroke-dasharray="3 4"/>
-      <line x1="15" y1="${Y(mn)}" x2="${Wd+15}" y2="${Y(mn)}" stroke="var(--line)" stroke-dasharray="3 4"/>
-      <text x="18" y="${Y(mx)-4}" fill="var(--muted2)" font-size="10">${mx}kg</text>
-      <text x="18" y="${Y(mn)+12}" fill="var(--muted2)" font-size="10">${mn}kg</text>
-      <polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>
-      ${recent.map((d,i)=>`<circle cx="${X(i)}" cy="${Y(d.kg)}" r="${i===recent.length-1?4:2.5}" fill="var(--accent)"/>`).join('')}</svg>`;
-  }
-  const rows=[...data].reverse().slice(0,30).map(r=>`<div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line)"><span class="pv">${r.date}</span><span style="font-weight:700">${fmtW(r.kg)} kg</span></div>`).join('');
-  document.getElementById('sheet').innerHTML=`<h3 style="margin:0 0 14px">${BIG3_LABELS[k]} MAX推移</h3>
-    <div class="card" style="margin-bottom:12px;overflow:hidden">${chart}</div>
-    <div style="max-height:260px;overflow-y:auto">${rows||'<p style="color:var(--muted2)">記録がありません</p>'}</div>
+  const last=data[data.length-1],recent=data.slice(-20);
+  const Wd=Math.min(340,(document.querySelector('.app')||{clientWidth:340}).clientWidth-50);
+  const chart=recent.length>=2?`<div class="card" style="overflow:hidden">${lineSvg(recent.map(d=>d.kg),BIG3_COLORS[k],Wd,140)}</div>`:'';
+  const rows=[...data].reverse().slice(0,20).map((r,i,a)=>{
+    const nx=a[i+1];let sd='';
+    if(nx){const d=Math.round((r.kg-nx.kg)*10)/10;
+      sd=d>0?`<span class="diffb up">▲ +${fmtW(d)}</span>`:d<0?`<span class="diffb down">▼ ${fmtW(d)}</span>`:'';}
+    return `<div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)"><span class="pv" style="width:80px;flex:0 0 auto">${r.date}</span><b style="flex:1;font-variant-numeric:tabular-nums">${fmtW(r.kg)} kg</b>${sd}</div>`;
+  }).join('');
+  document.getElementById('sheet').innerHTML=`
+    <h3 style="margin:0;color:${BIG3_COLORS[k]}">${BIG3_SHORT[k]}</h3>
+    <div class="pv" style="margin-bottom:10px">${BIG3_LABELS[k]} MAX</div>
+    <div class="ins" style="margin-bottom:12px">
+      <input id="big3in-${k}" inputmode="decimal" value="${last?last.kg:''}" placeholder="kg" style="flex:1;height:52px;font-size:20px">
+      <span class="u" style="width:auto">kg</span>
+      <button class="btn" style="flex:0 0 auto;height:52px;padding:0 20px" onclick="addBig3('${k}')">記録</button>
+    </div>
+    ${chart}
+    <div style="max-height:230px;overflow-y:auto">${rows||'<p class="pv" style="text-align:center;padding:10px 0">記録なし</p>'}</div>
     <button class="btn g" style="width:100%;margin-top:14px" onclick="closeSheet()">閉じる</button>`;
   showSheet();
 }
@@ -1269,7 +1339,6 @@ function tReset(){tRun=false;clearInterval(tInt);tEl=0;tFired=false;updateMini()
 function tAdj(d){tAlert=Math.max(15,tAlert+d);tFired=tEl>=tAlert?tFired:false;updateMini();renderTimer();}
 function tPreset(p){tAlert=p;tFired=false;updateMini();renderTimer();}
 
-function hideTip(){TIPDONE=true;try{localStorage.setItem('gym-tip-v1','1');}catch(e){}renderHome();}
 /* ====== シート開閉 ====== */
 function showSheet(){document.getElementById('ov').classList.add('show');}
 function closeSheet(){
@@ -1304,6 +1373,45 @@ function buildByDate(){
   return Object.keys(map).sort().reverse().map(date=>({date,days:map[date]}));
 }
 const escJs=s=>esc(s).replace(/'/g,'&#39;').replace(/\\/g,'\\\\');
+
+/* ====== 種目の成長ビュー(📈) ====== */
+function exProgress(dk,name){
+  const h=(LOGS[exKey(dk,name)]||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const pts=h.map(en=>({date:en.date,tw:topW(en.sets),bs:bestSet(en.sets)})).filter(p=>p.tw>0&&p.bs);
+  if(!pts.length){toast('重量の記録がありません');return;}
+  const first=pts[0],last=pts[pts.length-1];
+  const gain=Math.round((last.tw-first.tw)*10)/10;
+  let chart='';
+  if(pts.length>=2){
+    const Wd=Math.min(340,(document.querySelector('.app')||{clientWidth:340}).clientWidth-50),H=140;
+    const ks=pts.map(p=>p.tw),mn=Math.min(...ks),mx=Math.max(...ks),pad=(mx-mn)*0.15||2.5,lo=mn-pad,hi=mx+pad;
+    const X=i=>15+i/(pts.length-1)*Wd,Y=v=>10+(1-(v-lo)/(hi-lo))*(H-30);
+    const pl=pts.map((p,i)=>`${X(i)},${Y(p.tw)}`).join(' ');
+    chart=`<div class="card" style="overflow:hidden"><svg width="${Wd+30}" height="${H}" style="display:block;width:100%;overflow:visible">
+      <text x="18" y="${Y(mx)-4}" fill="var(--muted2)" font-size="10">${fmtW(mx)}kg</text>
+      <text x="18" y="${Y(mn)+12}" fill="var(--muted2)" font-size="10">${fmtW(mn)}kg</text>
+      <polyline points="${pl}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>
+      ${pts.map((p,i)=>`<circle cx="${X(i)}" cy="${Y(p.tw)}" r="${i===pts.length-1?4:2.5}" fill="var(--accent)"/>`).join('')}</svg></div>`;
+  }
+  const rows=[...pts].reverse().map((p,i,a)=>{
+    const nx=a[i+1];let sd='';
+    if(nx){const d=Math.round((p.tw-nx.tw)*10)/10;
+      sd=d>0?`<span class="diffb up">▲ +${fmtW(d)}</span>`:d<0?`<span class="diffb down">▼ ${fmtW(d)}</span>`:`<span class="diffb eq">±0</span>`;}
+    return `<div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)">
+      <span class="pv" style="width:44px;flex:0 0 auto">${p.date.slice(5).replace('-','/')}</span>
+      <b style="flex:1;font-variant-numeric:tabular-nums">${fmtW(p.bs.w)}kg × ${p.bs.r??'–'}</b>${sd}</div>`;
+  }).join('');
+  document.getElementById('sheet').innerHTML=`
+    <h3 style="margin:0">📈 ${esc(name)}</h3>
+    <div style="display:flex;align-items:baseline;gap:10px;margin:8px 0 12px">
+      <span style="font-size:1.9rem;font-weight:900;font-variant-numeric:tabular-nums">${fmtW(last.tw)}<small style="font-size:.85rem;color:var(--muted)"> kg</small></span>
+      ${pts.length>=2?`<span class="diffb ${gain>0?'up':gain<0?'down':'eq'}" style="font-size:.85rem">${gain>0?'▲ +':gain<0?'▼ ':'±'}${fmtW(Math.abs(gain))||0}kg</span><span class="pv">初回 ${fmtW(first.tw)}kg から</span>`:''}
+    </div>
+    ${chart}
+    <div style="max-height:250px;overflow-y:auto">${rows}</div>
+    <button class="btn g" style="width:100%;margin-top:14px" onclick="closeSheet()">閉じる</button>`;
+  showSheet();
+}
 
 /* ====== 履歴の修正・削除 ====== */
 function histDel(dk,name,date){
@@ -1380,13 +1488,27 @@ function renderHistory(){
         days[dk].forEach(x=>{
           const k2=key+'|'+dk+'|'+x.name,xo=expandedHX.has(k2);
           const valid=x.sets.filter(s=>s.w!=null||s.r!=null);
+          const prev=prevBefore(dk,x.name,date);
+          const cw=topW(x.sets),pw=prev?topW(prev.sets):0;
+          let db='';
+          if(cw>0&&pw>0){const d=Math.round((cw-pw)*10)/10;
+            db=d>0?`<span class="diffb up">▲ +${fmtW(d)}</span>`:d<0?`<span class="diffb down">▼ ${fmtW(d)}</span>`:`<span class="diffb eq">±0</span>`;}
           body+=`<div class="hex">
             <div class="hexrow">
-              <button class="hexname" onclick="togHX('${escJs(k2)}')"><span class="chev" style="font-size:.68rem;width:12px">${xo?'▾':'▸'}</span><span class="hxnm">${esc(x.name)}</span><span class="pv" style="flex:0 0 auto">${valid.length}セット</span></button>
+              <button class="hexname" onclick="togHX('${escJs(k2)}')"><span class="chev" style="font-size:.68rem;width:12px;flex:0 0 auto">${xo?'▾':'▸'}</span>
+                <span style="flex:1;min-width:0"><span class="hxnm" style="display:block">${esc(x.name)}</span>
+                <span class="pv">${cw>0?`<b style="color:var(--txt)">${fmtW(cw)}kg</b> `:''}${db} ${valid.length}セット</span></span></button>
+              <button class="hbtn" onclick="exProgress('${dk}','${escJs(x.name)}')">📈</button>
               <button class="hbtn" onclick="histEdit('${dk}','${escJs(x.name)}','${date}')">✎</button>
               <button class="hbtn" style="color:var(--down)" onclick="histDel('${dk}','${escJs(x.name)}','${date}')">🗑</button>
             </div>
-            ${xo?`<div class="hsets">${valid.map((s,i)=>`<div class="hset"><span>SET ${i+1}</span><b>${s.w!=null?fmtW(s.w)+' kg':'–'} × ${s.r!=null?s.r+' 回':'–'}</b></div>`).join('')}</div>`:''}
+            ${xo?`<div class="hsets">${valid.map((s,i)=>{
+              const ps=prev&&prev.sets[i]?prev.sets[i]:null;let sd='';
+              if(ps&&s.w!=null&&ps.w!=null){const d2=Math.round((s.w-ps.w)*10)/10;
+                if(d2>0)sd=`<span class="sdif up">+${fmtW(d2)}</span>`;
+                else if(d2<0)sd=`<span class="sdif down">${fmtW(d2)}</span>`;
+                else if(s.r!=null&&ps.r!=null&&s.r!==ps.r)sd=`<span class="sdif ${s.r>ps.r?'up':'down'}">${s.r>ps.r?'+':''}${s.r-ps.r}回</span>`;}
+              return `<div class="hset"><span>SET ${i+1}</span><span><b>${s.w!=null?fmtW(s.w)+' kg':'–'} × ${s.r!=null?s.r+' 回':'–'}</b>${sd}</span></div>`;}).join('')}</div>`:''}
           </div>`;
         });
         body+='</div>';
