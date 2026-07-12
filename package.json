@@ -7,7 +7,7 @@
     "sync": "cap sync",
     "ios": "cap open ios",
     "android": "cap open android",
-    "deploy:web": "wrangler pages deploy web --project-name=workoutmemo"
+    "deploy:web": "wrangler deploy"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.1",

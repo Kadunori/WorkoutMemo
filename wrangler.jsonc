@@ -1,0 +1,9 @@
+{
+  // Cloudflare Workers(静的アセット配信)の設定
+  // Workers Builds が main への push で `npm run deploy:web` を実行してデプロイする
+  "name": "workoutmemo",
+  "compatibility_date": "2026-07-01",
+  "assets": {
+    "directory": "./web"
+  }
+}

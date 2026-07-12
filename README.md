@@ -14,22 +14,16 @@ android/    Androidネイティブアプリ(Capacitor生成)
 
 ## Webのデプロイ(Cloudflare Pages)
 
-GitHub Pages は廃止し、Cloudflare Pages で運用する。
+GitHub Pages は廃止し、Cloudflare Workers(静的アセット配信)で運用する。
+設定は `wrangler.jsonc`(`web/` をそのまま配信、Workerスクリプトなし)。
 
-### 初回セットアップ(どちらか)
+**自動デプロイ(設定済み)** — Cloudflare の Workers Builds が本リポジトリと連携しており、
+`main` への push で `npm run deploy:web`(= `wrangler deploy`)が実行される。
 
-**A. Git連携(推奨)** — Cloudflareダッシュボード → Workers & Pages → Create → Pages →
-「Connect to Git」で本リポジトリを選択。
-
-- Build command: (なし)
-- Build output directory: `web`
-
-以後 `main` への push で自動デプロイされる。
-
-**B. CLIで手動デプロイ**
+**CLIで手動デプロイ**
 
 ```sh
-npx wrangler login
+npx wrangler login   # 初回のみ
 npm run deploy:web
 ```
 
