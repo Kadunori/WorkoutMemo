@@ -1,0 +1,12 @@
+{
+  "appId": "com.kadunori.mmate",
+  "appName": "MMate",
+  "webDir": "web",
+  "ios": {
+    "contentInset": "never"
+  },
+  "android": {
+    "allowMixedContent": false
+  },
+  "backgroundColor": "#0d0e11"
+}

@@ -1,0 +1,18 @@
+{
+  "name": "workoutmemo",
+  "version": "1.0.0",
+  "description": "MMate - 筋トレ記録アプリ (Web + iOS/Android via Capacitor)",
+  "private": true,
+  "scripts": {
+    "sync": "cap sync",
+    "ios": "cap open ios",
+    "android": "cap open android",
+    "deploy:web": "wrangler pages deploy web --project-name=workoutmemo"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/ios": "^8.4.1"
+  }
+}

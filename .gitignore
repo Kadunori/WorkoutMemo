@@ -1,21 +1,25 @@
-# 環境変数（機密情報を含む）
+# Node / Capacitor
+node_modules/
+
+# iOS (Capacitor)
+ios/App/Pods/
+ios/App/App.xcworkspace/xcuserdata/
+ios/App/App.xcodeproj/xcuserdata/
+ios/DerivedData/
+
+# Android (Capacitor)
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+
+# 環境変数(機密情報)
 .env
 .env.local
-
-# Go ビルド成果物
-services/*/bin/
-services/*/*.exe
-
-# go.sum は go mod tidy で生成するためコミットしない
-# ※ チーム開発の場合はコミットするのが一般的
-# services/*/go.sum
-
-# Docker
-.docker/
 
 # エディタ・OS
 .DS_Store
 .idea/
 .vscode/
 *.swp
-untitled folder/
