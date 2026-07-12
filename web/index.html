@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="MMate">
 <link rel="apple-touch-icon" sizes="180x180" href="icon.png">
 <link rel="icon" type="image/png" href="icon.png">
+<link rel="manifest" href="manifest.json">
 <title>MMate</title>
 <style>
   :root{
@@ -224,6 +225,10 @@
   .sheet{width:100%;max-width:520px;margin:0 auto;background:var(--bg);border-radius:22px 22px 0 0;padding:18px;max-height:92vh;overflow:auto;}
   #toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%) translateY(10px);background:var(--txt);color:#0d0e11;font-weight:800;font-size:.86rem;padding:12px 20px;border-radius:999px;opacity:0;pointer-events:none;transition:.25s;z-index:70;max-width:88%;text-align:center;}
   #toast.show{opacity:1;transform:translateX(-50%);}
+  #toast.act{pointer-events:auto;}
+  #toast .undo{margin-left:10px;background:none;border:none;color:#0d0e11;font-weight:900;font-size:.86rem;text-decoration:underline;padding:4px;}
+  .a2hs{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line));border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:.8rem;font-weight:700;color:var(--txt);}
+  .a2hs button{background:none;border:none;color:var(--muted2);font-size:15px;padding:4px 6px;flex:0 0 auto;}
   .timer .big{font-size:54px;font-weight:800;font-variant-numeric:tabular-nums;text-align:center;margin:6px 0 0;}
   button,.pill,.tab,.sb,input{touch-action:manipulation;}
   input[type=text],input[type=number]{font-family:inherit;}
@@ -440,12 +445,18 @@ const vol=sets=>sets.reduce((v,s)=>(s&&s.w!=null&&s.r!=null)?v+s.w*s.r:v,0);
 const fmtW=w=>w==null?'':(Number.isInteger(w)?String(w):w.toFixed(1));
 const clone=o=>JSON.parse(JSON.stringify(o));
 function todayStr(){const n=new Date();return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;}
-function prevSession(d,n){const h=LOGS[exKey(d,n)]||[],t=todayStr();for(let i=h.length-1;i>=0;i--)if(h[i].date<t)return h[i];return null;}
+// 同名種目は全メニュー横断で集約(胸の日と腕の日に同じ種目があっても記録が繋がる)
+function entriesByName(name){
+  const out=[];
+  Object.keys(LOGS).forEach(k=>{const i=k.indexOf('|');if(k.slice(i+1)===name)out.push(...LOGS[k]);});
+  return out.sort((a,b)=>a.date.localeCompare(b.date));
+}
+function prevSession(d,n){const t=todayStr(),es=entriesByName(n).filter(e=>e.date<t);return es.length?es[es.length-1]:null;}
 function todaySession(d,n){const h=LOGS[exKey(d,n)]||[],t=todayStr();return h.find(s=>s.date===t)||null;}
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const topW=sets=>Math.max(0,...sets.filter(s=>s.w!=null).map(s=>s.w));
 function bestSet(sets){let b=null;sets.forEach(s=>{if(s.w==null&&s.r==null)return;if(!b||(s.w??0)>(b.w??0)||((s.w??0)===(b.w??0)&&(s.r??0)>(b.r??0)))b=s;});return b;}
-function prevBefore(dk,name,date){const h=LOGS[exKey(dk,name)]||[];let p=null;h.forEach(s=>{if(s.date<date&&(!p||s.date>p.date))p=s;});return p;}
+function prevBefore(dk,name,date){const es=entriesByName(name).filter(e=>e.date<date);return es.length?es[es.length-1]:null;}
 
 /* ====== ストレージ(localStorage) ====== */
 let PROGRAM=[], LOGS={}, BW=[], BIG3={bench:[],squat:[],deadlift:[]}, SCHEDULE=[...DEFAULT_SCHEDULE], STORAGE_OK=false, MEMO={}, LOC={};
@@ -504,7 +515,26 @@ let tab='home';
 let activeDay='chest';
 const expandedH=new Set(),expandedHX=new Set();
 let tempSchedule=null;
-function toast(m,ms=1700){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),ms);}
+function toast(m,ms=1700){const t=document.getElementById('toast');t.textContent=m;t.classList.remove('act');t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),ms);}
+/* 削除系はUndoつきトースト(確認ダイアログの代わり) */
+let undoFn=null;
+function toastUndo(m,fn,ms=6000){
+  const t=document.getElementById('toast');
+  undoFn=fn;
+  t.innerHTML=`${esc(m)}<button class="undo" onclick="doUndo()">元に戻す</button>`;
+  t.classList.add('show','act');
+  clearTimeout(t._t);t._t=setTimeout(()=>{t.classList.remove('show','act');undoFn=null;},ms);
+}
+function doUndo(){
+  const t=document.getElementById('toast');
+  t.classList.remove('show','act');
+  if(undoFn){const f=undoFn;undoFn=null;f();}
+}
+function restoreEntry(k,en){
+  const h=LOGS[k]||[];
+  h.push(en);h.sort((a,b)=>a.date.localeCompare(b.date));
+  LOGS[k]=h;saveLogs();
+}
 function vib(p){try{navigator.vibrate&&navigator.vibrate(p||12);}catch(e){}}
 
 /* ====== 画面スリープ防止(ワークアウト中) ====== */
@@ -537,6 +567,7 @@ function renderHome(){
   let h=`<div class="dh"><div><div class="eyebrow" style="color:${day.color}">MEMO ・ ${n.getMonth()+1}/${n.getDate()} ${['日','月','火','水','木','金','土'][todayWd]}曜日</div><h2 style="margin-bottom:2px">${esc(day.label)}</h2></div>
     <button class="editbtn" onclick="openEditor()">✎ 編集</button></div>
     <div style="display:flex;align-items:center;gap:10px;margin:6px 0 12px"><div class="pbar" style="flex:1;margin:0"><i style="width:${day.ex.length?Math.round(logged/day.ex.length*100):0}%"></i></div><span class="pv" style="font-weight:800;flex:0 0 auto">${logged}/${day.ex.length}</span></div>`;
+  if(showA2HS())h+=`<div class="a2hs"><span style="flex:1">📲 「ホーム画面に追加」推奨 — オフライン起動&データ保護</span><button onclick="dismissA2HS()">✕</button></div>`;
   const loc=LOC[todayStr()];
   h+=`<button class="locchip ${loc?'set':''}" onclick="openLocSheet()">📍 ${loc?esc(loc.name||'GPS')+(loc.lat!=null?' ✓':''):'場所'}</button>`;
   if(nextIdx>=0&&day.ex.length)
@@ -642,7 +673,7 @@ function copyPrev(dk,idx){
   const en={date,sets:clone(prev.sets)};
   const li=hist.findIndex(x=>x.date===date);
   if(li>=0)hist[li]=en;else hist.push(en);
-  LOGS[k]=hist.slice(-50);saveLogs();vib();
+  LOGS[k]=hist;saveLogs();vib();
   toast('前回と同じ内容で記録しました ✓');renderHome();
 }
 
@@ -668,7 +699,8 @@ function openWorkout(dk,idx,isEdit){
   });
   let setIdx=0;
   for(let i=0;i<n;i++)if(!confirmed.has(i)){setIdx=i;break;}
-  W={dk,idx,setIdx,sets,confirmed,sug,phase:'input'};
+  // 日付はセッション開始時に固定(深夜0時を跨いでも記録が分裂しない)
+  W={dk,idx,setIdx,sets,confirmed,sug,phase:'input',date:todayStr()};
   document.documentElement.style.setProperty('--accent',day.color);
   wlOn();
   renderWk();
@@ -794,7 +826,7 @@ function wkGoto(i){
 // セット確定ごとに即保存(途中でアプリを閉じても残る)
 function wkSave(){
   if(!W)return;
-  const e=wkEx(),k=exKey(W.dk,e[0]),date=todayStr();
+  const e=wkEx(),k=exKey(W.dk,e[0]),date=W.date||todayStr();
   const sets=W.sets.map((s,i)=>W.confirmed.has(i)?{w:s.w,r:s.r}:{w:null,r:null});
   const hist=LOGS[k]||[],li=hist.findIndex(x=>x.date===date);
   if(!sets.some(s=>s.w!=null||s.r!=null)){
@@ -804,7 +836,7 @@ function wkSave(){
   }
   const en={date,sets};
   if(li>=0)hist[li]=en;else hist.push(en);
-  LOGS[k]=hist.slice(-50);saveLogs();
+  LOGS[k]=hist;saveLogs();
 }
 // セット削除: 後ろのセットを繰り上げてセット数を1減らす
 function wkDelSet(i){
@@ -823,18 +855,21 @@ function wkDelSet(i){
 // この種目の今日の記録を一括削除
 function wkClearToday(){
   if(!W)return;
-  const e=wkEx(),k=exKey(W.dk,e[0]),date=todayStr();
+  const e=wkEx(),k=exKey(W.dk,e[0]),date=W.date||todayStr();
+  const en=(LOGS[k]||[]).find(s=>s.date===date);
   if(LOGS[k]){LOGS[k]=LOGS[k].filter(s=>s.date!==date);if(!LOGS[k].length)delete LOGS[k];saveLogs();}
-  vib();toast('この種目の今日の記録を削除しました');
-  closeWk();
+  vib();closeWk();
+  if(en)toastUndo('記録を削除',()=>{restoreEntry(k,en);render();});
+  else toast('記録を削除しました');
 }
 // ホームの完了カードから種目の今日の記録を一括削除
 function delTodayEx(dk,idx){
   const day=PROGRAM.find(d=>d.key===dk);if(!day||!day.ex[idx])return;
   const k=exKey(dk,day.ex[idx][0]),date=todayStr();
+  const en=(LOGS[k]||[]).find(s=>s.date===date);
   if(LOGS[k]){LOGS[k]=LOGS[k].filter(s=>s.date!==date);if(!LOGS[k].length)delete LOGS[k];saveLogs();}
-  vib();toast('今日の記録を削除しました');
-  renderHome();
+  vib();renderHome();
+  if(en)toastUndo('記録を削除',()=>{restoreEntry(k,en);renderHome();});
 }
 
 /* ====== 左スワイプで削除 ====== */
@@ -894,7 +929,7 @@ function wkFinishEarly(){
 function wkAllDone(skipRest,goHome){
   const day=wkDay(),e=wkEx();
   // 自己ベスト(推定1RM)判定
-  const k=exKey(W.dk,e[0]),hist=LOGS[k]||[],date=todayStr();
+  const k=exKey(W.dk,e[0]),hist=LOGS[k]||[],date=W.date||todayStr();
   const e1=s2=>s2.w!=null&&s2.r?s2.w*(1+s2.r/30):0;
   const bestOf=ss=>Math.max(0,...ss.map(e1));
   const todayBest=bestOf(W.sets.filter((_,i)=>W.confirmed.has(i)));
@@ -1040,7 +1075,7 @@ function renderForm(){
     }
   }
   if(isEdit||(edit.m&&edit.eq)){
-    const REPS=['5–8','6–10','8–12','10–12','12–15','15–20'],RESTS=['60秒','90秒','120秒','150秒','180秒'];
+    const REPS=['5–8','6–10','8–12','10–12','12–15','15–20'],RESTS=['60秒','90秒','120秒','150秒','180秒','240秒','300秒'];
     h+=`<div class="sec">${isEdit?'①':'④'} 目標設定</div>
       <div class="pv" style="margin-bottom:6px">セット数: ${edit.sets}</div>
       <div class="ins" style="margin-bottom:6px"><button class="sb" onclick="eStep(-1)">−</button><span style="width:34px;text-align:center;font-weight:800;font-size:19px">${edit.sets}</span><button class="sb" onclick="eStep(1)">＋</button></div>
@@ -1130,11 +1165,12 @@ function renderBody(){
   const dW=latest&&prevW?Math.round((latest.kg-prevW.kg)*10)/10:null;
   const Wd=Math.min(440,(document.querySelector('.app')?.clientWidth||360)-66);
   const bwChart=data.length>=2?`<div class="card">${lineSvg(data.map(d=>d.kg),'var(--accent)',Wd,150)}</div>`:'';
-  document.getElementById('main').innerHTML=`
-   <div class="eyebrow" style="color:var(--accent)">BIG3 MAX</div><h2>Info</h2>
-   <div class="tiles">${tiles}</div>
-   ${big3Chart()}
-   <div class="eyebrow" style="color:var(--accent);margin-top:20px">WEIGHT</div>
+  const big3Html=`
+   <div class="eyebrow" style="color:var(--accent)">BIG3 MAX</div>
+   <div class="tiles" style="margin-top:6px">${tiles}</div>
+   ${big3Chart()}`;
+  const weightHtml=`
+   <div class="eyebrow" style="color:var(--accent)">WEIGHT</div>
    <div class="card" style="margin-top:6px">
      <div style="display:flex;align-items:center;gap:10px">
        <span style="font-size:1.65rem;font-weight:900;font-variant-numeric:tabular-nums">${latest?latest.kg:'–'}<small style="font-size:.78rem;color:var(--muted);font-weight:700"> kg</small></span>
@@ -1147,6 +1183,19 @@ function renderBody(){
    <div class="rngs">${[['1m','1ヶ月'],['3m','3ヶ月'],['all','全期間']].map(([r,l])=>`<button class="rng ${bwRange===r?'on':''}" onclick="setBwRange('${r}')">${l}</button>`).join('')}</div>
    ${bwChart||'<p class="pv" style="text-align:center;padding:16px 0">記録が2回以上でグラフ表示</p>'}
    ${[...data].reverse().slice(0,10).map(d=>`<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)"><span class="pv">${d.date}</span><b style="font-variant-numeric:tabular-nums">${d.kg} kg</b></div>`).join('')}`;
+  // BIG3未登録のユーザー(ライト層)には体重を先頭に
+  const hasB3=BIG3_KEYS.some(k=>(BIG3[k]||[]).length);
+  document.getElementById('main').innerHTML=`<h2 style="margin-bottom:10px">Info</h2>`+
+    (hasB3?big3Html+'<div style="height:16px"></div>'+weightHtml:weightHtml+'<div style="height:16px"></div>'+big3Html);
+}
+// トレ記録からBIG3の推定1RM(Epley)を算出
+const B3_MATCH={bench:['ベンチプレス','バーベルベンチプレス'],squat:['バーベルスクワット','バックスクワット'],deadlift:['デッドリフト']};
+function estB3(k){
+  let best=0;
+  B3_MATCH[k].forEach(n=>entriesByName(n).forEach(en=>en.sets.forEach(s=>{
+    if(s.w!=null&&s.r)best=Math.max(best,s.w*(1+s.r/30));
+  })));
+  return best?Math.round(best*2)/2:null;
 }
 function addBw(){const v=parseFloat(document.getElementById('bwin').value);if(isNaN(v)||v<=0)return;
   const date=todayStr();BW=[...BW.filter(x=>x.date!==date),{date,kg:Math.round(v*10)/10}];saveBW();renderBody();toast('体重を記録 ✓');}
@@ -1178,6 +1227,11 @@ function big3Sheet(k){
       <span class="u" style="width:auto">kg</span>
       <button class="btn" style="flex:0 0 auto;height:52px;padding:0 20px" onclick="addBig3('${k}')">記録</button>
     </div>
+    ${(()=>{const est=estB3(k);
+      if(est&&(!last||est>last.kg))return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:10px 12px;border-radius:12px;background:var(--panel);border:1px solid color-mix(in srgb,${BIG3_COLORS[k]} 40%,var(--line))">
+        <span class="pv" style="flex:1">トレ記録からの推定1RM <b style="color:var(--txt);font-size:1rem">${fmtW(est)}kg</b></span>
+        <button class="btn" style="flex:0 0 auto;height:40px;padding:0 14px;font-size:.82rem" onclick="document.getElementById('big3in-${k}').value='${est}';addBig3('${k}')">反映</button></div>`;
+      return '';})()}
     ${chart}
     <div style="max-height:230px;overflow-y:auto">${rows||'<p class="pv" style="text-align:center;padding:10px 0">記録なし</p>'}</div>
     <button class="btn g" style="width:100%;margin-top:14px" onclick="closeSheet()">閉じる</button>`;
@@ -1272,6 +1326,11 @@ function tTick(){
   if(!tFired&&tEl>=tAlert){
     tFired=true;beep();setTimeout(beep,500);setTimeout(beep,1000);
     vib([200,100,200,100,400]);
+    // 気づかれない場合に備えて8秒後にもう1回鳴らす(iOSはサイレント時無音のため画面点滅も)
+    setTimeout(()=>{if(tRun&&tEl>=tAlert){beep();setTimeout(beep,400);vib([200,100,200]);
+      const b2=document.getElementById('restWrap')||document.getElementById('timerBox');
+      if(b2){b2.classList.add('flash');setTimeout(()=>b2.classList.remove('flash'),1600);}
+    }},8000);
     const b=document.getElementById('restWrap')||document.getElementById('timerBox');
     if(b){b.classList.add('flash');setTimeout(()=>b.classList.remove('flash'),1600);}
   }
@@ -1326,7 +1385,7 @@ function renderTimer(){
       <button onclick="tAdj(15)" style="height:52px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);font-size:13px;font-weight:800">＋15s</button>
       <button onclick="tAdj(30)" style="height:52px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);font-size:13px;font-weight:800">＋30s</button>
     </div>
-    <div style="display:flex;justify-content:center;flex-wrap:wrap;gap:6px">${[60,90,120,150,180].map(p=>`<span class="pill ${tAlert===p?'on':''}" onclick="tPreset(${p})">${p}s</span>`).join('')}</div>
+    <div style="display:flex;justify-content:center;flex-wrap:wrap;gap:6px">${[60,90,120,150,180,240,300].map(p=>`<span class="pill ${tAlert===p?'on':''}" onclick="tPreset(${p})">${p}s</span>`).join('')}</div>
     <div style="text-align:center;margin-top:14px"><span class="pill ${AUTOTIMER?'on':''}" onclick="toggleAuto()">セット保存時に自動スタート: ${AUTOTIMER?'ON':'OFF'}</span></div>
     <button class="btn g" style="width:100%;margin-top:14px" onclick="closeSheet()">閉じる</button></div>`;
 }
@@ -1417,10 +1476,11 @@ function exProgress(dk,name){
 function histDel(dk,name,date){
   const k=exKey(dk,name);
   if(!LOGS[k])return;
+  const en=LOGS[k].find(s=>s.date===date);
   LOGS[k]=LOGS[k].filter(s=>s.date!==date);
   if(!LOGS[k].length)delete LOGS[k];
-  saveLogs();vib();toast(`${date} の ${name} を削除しました`);
-  renderHistory();
+  saveLogs();vib();renderHistory();
+  if(en)toastUndo(`${name} を削除`,()=>{restoreEntry(k,en);renderHistory();});
 }
 let hEdit=null;
 function histEdit(dk,name,date){
@@ -1502,13 +1562,17 @@ function renderHistory(){
               <button class="hbtn" onclick="histEdit('${dk}','${escJs(x.name)}','${date}')">✎</button>
               <button class="hbtn" style="color:var(--down)" onclick="histDel('${dk}','${escJs(x.name)}','${date}')">🗑</button>
             </div>
-            ${xo?`<div class="hsets">${valid.map((s,i)=>{
-              const ps=prev&&prev.sets[i]?prev.sets[i]:null;let sd='';
+            ${xo?`<div class="hsets">${(()=>{
+              // 前回とセット数が違う場合は末尾同士で整列(ウォームアップ数の違いでズレない)
+              const pvalid=prev?prev.sets.filter(s2=>s2.w!=null||s2.r!=null):[];
+              const off=pvalid.length-valid.length;
+              return valid.map((s,i)=>{
+              const ps=(i+off)>=0?pvalid[i+off]:null;let sd='';
               if(ps&&s.w!=null&&ps.w!=null){const d2=Math.round((s.w-ps.w)*10)/10;
                 if(d2>0)sd=`<span class="sdif up">+${fmtW(d2)}</span>`;
                 else if(d2<0)sd=`<span class="sdif down">${fmtW(d2)}</span>`;
                 else if(s.r!=null&&ps.r!=null&&s.r!==ps.r)sd=`<span class="sdif ${s.r>ps.r?'up':'down'}">${s.r>ps.r?'+':''}${s.r-ps.r}回</span>`;}
-              return `<div class="hset"><span>SET ${i+1}</span><span><b>${s.w!=null?fmtW(s.w)+' kg':'–'} × ${s.r!=null?s.r+' 回':'–'}</b>${sd}</span></div>`;}).join('')}</div>`:''}
+              return `<div class="hset"><span>SET ${i+1}</span><span><b>${s.w!=null?fmtW(s.w)+' kg':'–'} × ${s.r!=null?s.r+' 回':'–'}</b>${sd}</span></div>`;}).join('');})()}</div>`:''}
           </div>`;
         });
         body+='</div>';
@@ -1526,6 +1590,22 @@ initStore();migrateMenu();migrateMenuV3();
 todayKey=SCHEDULE[todayWd===0?6:todayWd-1]||null;
 activeDay=todayKey||PROGRAM[0]?.key||'chest';
 buildNav();render();
+
+/* ====== オフライン対応(Service Worker) ====== */
+if('serviceWorker' in navigator&&location.protocol==='https:'){
+  try{navigator.serviceWorker.register('./sw.js');}catch(e){}
+}
+/* iOS Safariのタブ利用は7日間未使用でデータが消えるため、ホーム画面追加を促す */
+function showA2HS(){
+  try{
+    if(localStorage.getItem('gym-a2hs-v1')==='1')return false;
+    if(window.Capacitor)return false;
+    const ios=/iP(hone|ad|od)/.test(navigator.userAgent);
+    const standalone=navigator.standalone||matchMedia('(display-mode: standalone)').matches;
+    return ios&&!standalone;
+  }catch(e){return false;}
+}
+function dismissA2HS(){try{localStorage.setItem('gym-a2hs-v1','1');}catch(e){}renderHome();}
 </script>
 </body>
 </html>
