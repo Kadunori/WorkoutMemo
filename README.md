@@ -2,7 +2,7 @@
 
 筋トレ中の疲労した状態でも簡単に記録できるトレーニング記録アプリ。
 
-**公開URL: https://mmate.kdnr.workers.dev**
+**公開URL: https://kdnr.mmate.workers.dev**
 
 ## 構成
 
