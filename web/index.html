@@ -60,16 +60,26 @@
   .dh{display:flex;align-items:flex-start;gap:10px;}
 
   /* ===== フルスクリーン記録モード ===== */
-  #wk{position:fixed;inset:0;z-index:50;background:var(--bg);display:none;flex-direction:column;max-width:520px;margin:0 auto;padding:calc(10px + env(safe-area-inset-top)) 18px calc(14px + env(safe-area-inset-bottom));}
+  #wk{position:fixed;inset:0;z-index:50;background:var(--bg);display:none;flex-direction:column;max-width:520px;margin:0 auto;padding:calc(10px + env(safe-area-inset-top)) 18px calc(14px + env(safe-area-inset-bottom));overflow-y:auto;}
   #wk.show{display:flex;}
   .wk-top{display:flex;align-items:center;gap:10px;margin-bottom:4px;}
   .wk-x{width:48px;height:48px;border-radius:14px;background:var(--panel);border:1px solid var(--line);color:var(--muted);font-size:18px;font-weight:800;flex:0 0 auto;}
   .wk-name{flex:1;font-weight:800;font-size:1.05rem;line-height:1.3;}
-  .wk-dots{display:flex;gap:8px;margin:10px 0 4px;}
-  .wk-dot{flex:1;height:52px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--muted2);font-weight:800;font-size:.82rem;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.15;padding:0;}
-  .wk-dot small{font-size:.6rem;font-weight:700;}
-  .wk-dot.cur{border-color:var(--accent);color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,var(--panel));}
-  .wk-dot.ok{border-color:color-mix(in srgb,var(--up) 50%,var(--line));color:var(--up);}
+  .wk-sets{display:flex;flex-direction:column;margin:10px 0 4px;}
+  .srw{display:flex;align-items:center;gap:10px;height:48px;padding:0 4px 0 14px;border-radius:12px;background:var(--panel);border:1px solid var(--line);}
+  .srw .sl{font-weight:800;font-size:.8rem;color:var(--muted2);min-width:58px;}
+  .srw .sv{font-weight:700;font-size:.92rem;}
+  .srw.cur{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--panel));}
+  .srw.cur .sl{color:var(--accent);}
+  .srw.ok .sl{color:var(--up);}
+  .srw .xdel{margin-left:auto;width:44px;height:44px;background:none;border:none;color:var(--muted2);font-size:15px;flex:0 0 auto;}
+  /* 左スワイプ削除 */
+  .swp{position:relative;margin-bottom:12px;}
+  .swp>*:first-child{position:relative;z-index:1;margin-bottom:0!important;width:100%;}
+  .swp::after{content:'🗑 削除';position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;padding-right:20px;background:color-mix(in srgb,var(--down) 75%,#000);border-radius:16px;color:#fff;font-weight:800;font-size:.9rem;z-index:0;}
+  .swp.arm::after{background:var(--down);}
+  .swp.s{margin-bottom:6px;}
+  .swp.s::after{border-radius:12px;padding-right:16px;font-size:.8rem;}
   .wk-mid{flex:1;display:flex;flex-direction:column;justify-content:center;min-height:0;}
   .wk-prev{text-align:center;color:var(--muted);font-size:.82rem;margin-bottom:6px;}
   .wk-prev b{color:var(--txt);}
@@ -347,43 +357,22 @@ const CAT={
   bw:['クランチ','レッグレイズ','ハンギングレッグレイズ','プランク']},
 };
 const C={chest:'var(--chest)',back:'var(--back)',delts:'var(--delts)',legs:'var(--legs)',arms:'var(--arms)'};
+// 部位タブ5つのみ用意。種目はユーザーが「✎ 編集」から自分で組む
 const DEFAULT=[
- {key:'chest',label:'胸',en:'CHEST',color:C.chest,weekday:1,focus:'胸4種 ・ 三頭1種 ・ 腹1種',ex:[
-   ['バーベルベンチプレス','4 × 5–8','1–2','180秒','','bb'],
-   ['インクラインダンベルプレス','3 × 8–12','1–2','150秒','','db'],
-   ['アイソラテラルチェストプレス','3 × 10–12','1–2','90秒','','iso'],
-   ['ケーブルクロスオーバー','3 × 12–15','0–1','60秒','','cable'],
-   ['ローププッシュダウン','3 × 12–15','0–1','60秒','三頭','cable'],
-   ['クランチ','3 × 15–20','0–1','60秒','腹','bw']]},
- {key:'back',label:'背中',en:'BACK',color:C.back,weekday:2,focus:'背中5種 ・ 二頭1種',ex:[
-   ['懸垂(チンニング)','4 × 6–10','1–2','180秒','','bw'],
-   ['バーベルロウ','4 × 6–10','1–2','150秒','','bb'],
-   ['ラットプルダウン','3 × 10–12','1–2','90秒','','cable'],
-   ['ワンハンドダンベルロウ','3 × 10–12','1–2','90秒','','db'],
-   ['アイソラテラルロウ','3 × 12–15','0–1','60秒','','iso'],
-   ['ハンマーカール','3 × 10–12','0–1','60秒','二頭','db']]},
- {key:'delts',label:'肩',en:'SHOULDERS',color:C.delts,weekday:4,focus:'プレス2種 ・ レイズ3種 ・ 僧帽1種',note:'胸の日から中1日。前部三角筋に疲れが残る場合はプレスを1セット減らしレイズ優先。',ex:[
-   ['バーベルオーバーヘッドプレス','4 × 6–10','1–2','180秒','','bb'],
-   ['ダンベルショルダープレス','3 × 8–12','1–2','120秒','','db'],
-   ['ダンベルサイドレイズ','4 × 12–15','0–1','60秒','','db'],
-   ['ケーブルサイドレイズ','3 × 15–20','0–1','60秒','','cable'],
-   ['リアデルトフライ(マシン)','3 × 15–20','0–1','60秒','','machine'],
-   ['バーベルシュラッグ','3 × 10–15','0–1','90秒','僧帽','bb']]},
- {key:'legs',label:'脚',en:'LEGS',color:C.legs,weekday:5,focus:'四頭3種 ・ ハム2種 ・ カーフ1種',note:'最も筋肉痛が出やすい日。スクワット・RDLの初回は軽めから。',ex:[
-   ['バーベルスクワット','4 × 5–8','1–2','180秒','','bb'],
-   ['レッグプレス','3 × 10–12','1–2','150秒','','machine'],
-   ['レッグエクステンション','3 × 12–15','0–1','90秒','','machine'],
-   ['ダンベルルーマニアンデッドリフト','3 × 8–10','1–2','150秒','','db'],
-   ['ライイングレッグカール','3 × 10–12','0–1','90秒','','machine'],
-   ['シーテッドカーフレイズ','4 × 12–15','0–1','60秒','カーフ','machine']]},
- {key:'arms',label:'腕',en:'ARMS',color:C.arms,weekday:6,focus:'二頭3種 ・ 三頭3種(高重量→パンプの順)',note:'翌日は休み。三頭は次週の胸まで回復する配置。',ex:[
-   ['バーベルカール','4 × 6–10','1–2','120秒','二頭','bb'],
-   ['クローズグリップベンチプレス','4 × 6–10','1–2','150秒','三頭','bb'],
-   ['インクラインダンベルカール','3 × 10–12','0–1','60秒','二頭','db'],
-   ['ダンベルオーバーヘッドエクステンション','3 × 10–12','1–2','90秒','三頭','db'],
-   ['ケーブルカール','3 × 12–15','0–1','60秒','二頭','cable'],
-   ['ローププッシュダウン','3 × 12–15','0–1','60秒','三頭','cable']]},
+ {key:'chest',label:'胸',en:'CHEST',color:C.chest,ex:[]},
+ {key:'back',label:'背中',en:'BACK',color:C.back,ex:[]},
+ {key:'delts',label:'肩',en:'SHOULDERS',color:C.delts,ex:[]},
+ {key:'legs',label:'脚',en:'LEGS',color:C.legs,ex:[]},
+ {key:'arms',label:'腕',en:'ARMS',color:C.arms,ex:[]},
 ];
+// 旧v2デフォルト種目(未カスタマイズ判定用 → v3移行で空にする)
+const V2_EX={
+ chest:[['バーベルベンチプレス','4 × 5–8','1–2','180秒','','bb'],['インクラインダンベルプレス','3 × 8–12','1–2','150秒','','db'],['アイソラテラルチェストプレス','3 × 10–12','1–2','90秒','','iso'],['ケーブルクロスオーバー','3 × 12–15','0–1','60秒','','cable'],['ローププッシュダウン','3 × 12–15','0–1','60秒','三頭','cable'],['クランチ','3 × 15–20','0–1','60秒','腹','bw']],
+ back:[['懸垂(チンニング)','4 × 6–10','1–2','180秒','','bw'],['バーベルロウ','4 × 6–10','1–2','150秒','','bb'],['ラットプルダウン','3 × 10–12','1–2','90秒','','cable'],['ワンハンドダンベルロウ','3 × 10–12','1–2','90秒','','db'],['アイソラテラルロウ','3 × 12–15','0–1','60秒','','iso'],['ハンマーカール','3 × 10–12','0–1','60秒','二頭','db']],
+ delts:[['バーベルオーバーヘッドプレス','4 × 6–10','1–2','180秒','','bb'],['ダンベルショルダープレス','3 × 8–12','1–2','120秒','','db'],['ダンベルサイドレイズ','4 × 12–15','0–1','60秒','','db'],['ケーブルサイドレイズ','3 × 15–20','0–1','60秒','','cable'],['リアデルトフライ(マシン)','3 × 15–20','0–1','60秒','','machine'],['バーベルシュラッグ','3 × 10–15','0–1','90秒','僧帽','bb']],
+ legs:[['バーベルスクワット','4 × 5–8','1–2','180秒','','bb'],['レッグプレス','3 × 10–12','1–2','150秒','','machine'],['レッグエクステンション','3 × 12–15','0–1','90秒','','machine'],['ダンベルルーマニアンデッドリフト','3 × 8–10','1–2','150秒','','db'],['ライイングレッグカール','3 × 10–12','0–1','90秒','','machine'],['シーテッドカーフレイズ','4 × 12–15','0–1','60秒','カーフ','machine']],
+ arms:[['バーベルカール','4 × 6–10','1–2','120秒','二頭','bb'],['クローズグリップベンチプレス','4 × 6–10','1–2','150秒','三頭','bb'],['インクラインダンベルカール','3 × 10–12','0–1','60秒','二頭','db'],['ダンベルオーバーヘッドエクステンション','3 × 10–12','1–2','90秒','三頭','db'],['ケーブルカール','3 × 12–15','0–1','60秒','二頭','cable'],['ローププッシュダウン','3 × 12–15','0–1','60秒','三頭','cable']],
+};
 const DEFAULT_SCHEDULE=['chest','back',null,'delts','legs','arms',null];
 
 /* ====== ユーティリティ ====== */
@@ -427,6 +416,18 @@ function migrateMenu(){
       }
     });
     localStorage.setItem('gym-menu-v2','1');saveProgram();
+  }catch(e){}
+}
+// ===== v3移行: デフォルト種目を廃止。旧デフォルトのまま(=未カスタマイズ)の部位は空にする =====
+function migrateMenuV3(){
+  if(!STORAGE_OK)return;
+  try{
+    if(localStorage.getItem('gym-menu-v3'))return;
+    PROGRAM.forEach(d=>{
+      const s=JSON.stringify(d.ex);
+      if((V2_EX[d.key]&&JSON.stringify(V2_EX[d.key])===s)||LEGACY_EX[d.key]===s)d.ex=[];
+    });
+    localStorage.setItem('gym-menu-v3','1');saveProgram();
   }catch(e){}
 }
 
@@ -492,8 +493,9 @@ function renderHome(){
     </div>`;
   }
   day.ex.forEach((e,i)=>h+=homeCard(day,e,i,i===nextIdx));
-  if(!day.ex.length)h+=`<p style="color:var(--muted2);text-align:center;padding:24px 0">種目がありません。「✎ 編集」から追加してください。</p>`;
+  if(!day.ex.length)h+=`<div style="text-align:center;padding:20px 0"><p style="color:var(--muted2);margin:0 0 14px">まだ種目がありません。<br>このメニューでやる種目を自分で組みましょう。</p><button class="btn" style="width:100%;height:56px" onclick="openEditor()">＋ 種目を追加する</button></div>`;
   document.getElementById('main').innerHTML=h;
+  bindSwipes(document.getElementById('main'));
 }
 function selDay(k){activeDay=k;render();window.scrollTo(0,0);}
 
@@ -503,11 +505,11 @@ function homeCard(day,e,idx,isNext){
   const badges=`${EQ_LABEL[eq]?`<span class="badge">${EQ_LABEL[eq]}</span>`:''}${tagv?`<span class="tag">${tagv}</span>`:''}`;
   if(te){
     const sum=te.sets.filter(s=>s.w!=null||s.r!=null).map((s,i)=>`<span class="chip"><span class="k">S${i+1}</span>${s.w!=null?fmtW(s.w)+'kg':'–'}×${s.r!=null?s.r:'–'}</span>`).join('');
-    return `<button class="xc done" onclick="openWorkout('${day.key}',${idx},true)">
+    return `<div class="swp" data-del="ex:${day.key}:${idx}"><button class="xc done" onclick="openWorkout('${day.key}',${idx},true)">
       <span class="st" style="color:var(--up)">✓ 完了</span>
       <div class="nm">${esc(name)} ${badges}</div>
       <div class="sub">${sum||'<span class="pv">データなし</span>'}</div>
-      <div class="cpv" style="font-size:.72rem;color:var(--muted2)">タップで修正</div></button>`;
+      <div class="cpv" style="font-size:.72rem;color:var(--muted2)">タップで修正 ・ ←スワイプで削除　<span style="color:var(--down);font-weight:700" onclick="event.stopPropagation();delTodayEx('${day.key}',${idx})">🗑 記録を削除</span></div></button></div>`;
   }
   const prevTxt=prev
     ?`前回 <b style="color:var(--txt)">${prev.sets.filter(s=>s.w!=null||s.r!=null).map(s=>`${s.w!=null?fmtW(s.w):'–'}×${s.r!=null?s.r:'–'}`).join(' / ')}</b>`
@@ -515,7 +517,7 @@ function homeCard(day,e,idx,isNext){
   return `<div class="xc ${isNext?'next':''}" onclick="openWorkout('${day.key}',${idx})" role="button" tabindex="0">
     ${isNext?`<span class="st" style="color:var(--accent)">▶ 次はコレ</span>`:''}
     <div class="nm">${esc(name)} ${badges}</div>
-    <div class="sub"><span class="chip"><span class="k">SET</span>${sr}</span><span class="chip"><span class="k">RIR</span>${rir}</span><span class="chip"><span class="k">休憩</span>${rest}</span></div>
+    <div class="sub"><span class="chip"><span class="k">SET</span>${sr}</span><span class="chip"><span class="k">休憩</span>${rest}</span></div>
     <div class="cpv">${prevTxt}${MEMO[exKey(day.key,name)]?`<br>📝 ${esc(MEMO[exKey(day.key,name)])}`:''}</div>
     ${prev?`<button class="copybtn" onclick="event.stopPropagation();copyPrev('${day.key}',${idx})">⚡ 前回と同じ内容で記録(1タップ)</button>`:''}
   </div>`;
@@ -595,8 +597,10 @@ function copyPrev(dk,idx){
 let W=null; // {dk,idx,setIdx,sets,confirmed,sug,phase:'input'|'rest',restNext,editW,editR}
 function openWorkout(dk,idx,isEdit){
   const day=PROGRAM.find(d=>d.key===dk);if(!day||!day.ex[idx])return;
-  const e=day.ex[idx],n=setCount(e[1]);
+  const e=day.ex[idx];
   const prev=prevSession(dk,e[0]),today=todaySession(dk,e[0]);
+  // 修正モードでは記録済みのセット数(削除後の数)をそのまま使う
+  const n=(isEdit&&today&&today.sets.length)?today.sets.length:setCount(e[1]);
   const sug=prev?null:suggestW(e);
   const rlow=prev?null:repLow(e[1]);
   const confirmed=new Set();
@@ -637,10 +641,10 @@ function renderWk(){
   const prev=prevSession(W.dk,name);
   const pv=prev&&prev.sets[W.setIdx]?prev.sets[W.setIdx]:null;
   const step=EQ_STEP[eq]??2.5;
-  const dots=W.sets.map((x,i)=>{
+  const rows=W.sets.map((x,i)=>{
     const cls=i===W.setIdx?'cur':(W.confirmed.has(i)?'ok':'');
-    const v=W.confirmed.has(i)?`${x.w!=null?fmtW(x.w):'–'}×${x.r!=null?x.r:'–'}`:(i===W.setIdx?'入力中':'–');
-    return `<button class="wk-dot ${cls}" onclick="wkGoto(${i})">SET${i+1}<small>${v}</small></button>`;
+    const v=W.confirmed.has(i)?`${x.w!=null?fmtW(x.w)+'kg':'–'} × ${x.r!=null?x.r+'回':'–'}`:(i===W.setIdx?'入力中':'未入力');
+    return `<div class="swp s" data-del="set:0:${i}"><div class="srw ${cls}" onclick="wkGoto(${i})"><span class="sl">SET${i+1}${W.confirmed.has(i)?' ✓':''}</span><span class="sv" ${W.confirmed.has(i)?'':'style="color:var(--muted2);font-weight:600;font-size:.8rem"'}>${v}</span><button class="xdel" onclick="event.stopPropagation();wkDelSet(${i})">✕</button></div></div>`;
   }).join('');
   const remaining=W.sets.filter((_,i)=>i!==W.setIdx&&!W.confirmed.has(i)).length;
   const isFinal=remaining===0;
@@ -648,10 +652,10 @@ function renderWk(){
   el.innerHTML=`
     <div class="wk-top">
       <button class="wk-x" onclick="closeWk()">✕</button>
-      <div class="wk-name">${esc(name)}<div style="font-size:.72rem;color:var(--muted);font-weight:600">${sr} ・ RIR ${rir} ・ 休憩 ${rest}</div></div>
+      <div class="wk-name">${esc(name)}<div style="font-size:.72rem;color:var(--muted);font-weight:600">${sr} ・ 休憩 ${rest}</div></div>
       <span style="font-size:1.4rem;font-weight:900;color:var(--accent);flex:0 0 auto">${W.setIdx+1}<span style="font-size:.85rem;color:var(--muted)">/${n}</span></span>
     </div>
-    <div class="wk-dots">${dots}</div>
+    <div class="wk-sets">${rows}</div>
     <div class="wk-mid">
       <div class="wk-prev">${prevTxt}</div>
       <div class="stp">
@@ -670,7 +674,9 @@ function renderWk(){
     </div>
     <button class="wk-done" onclick="wkConfirm()">✓ SET ${W.setIdx+1} 完了${isFinal?'(保存)':''}</button>
     ${isFinal?'':`<button class="wk-sub" onclick="wkFinishEarly()">ここまでで保存して終了</button>`}
-    <input class="wk-memo" type="text" value="${esc(MEMO[exKey(W.dk,name)]||'')}" placeholder="📝 メモ(シート高さ・グリップ幅など)" maxlength="60" onchange="setMemoCur(this.value)">`;
+    <input class="wk-memo" type="text" value="${esc(MEMO[exKey(W.dk,name)]||'')}" placeholder="📝 メモ(空にすると削除)" maxlength="60" oninput="setMemoCur(this.value)">
+    <button class="wk-sub" style="color:var(--down)" onclick="wkClearToday()">🗑 この種目の今日の記録を全部削除</button>`;
+  bindSwipes(el);
 }
 function wkAdj(k,d){
   if(!W)return;
@@ -709,11 +715,76 @@ function wkSave(){
   if(!W)return;
   const e=wkEx(),k=exKey(W.dk,e[0]),date=todayStr();
   const sets=W.sets.map((s,i)=>W.confirmed.has(i)?{w:s.w,r:s.r}:{w:null,r:null});
-  if(!sets.some(s=>s.w!=null||s.r!=null))return;
   const hist=LOGS[k]||[],li=hist.findIndex(x=>x.date===date);
+  if(!sets.some(s=>s.w!=null||s.r!=null)){
+    // 有効なセットが1つもなくなったら今日のエントリごと削除
+    if(li>=0){hist.splice(li,1);if(hist.length)LOGS[k]=hist;else delete LOGS[k];saveLogs();}
+    return;
+  }
   const en={date,sets};
   if(li>=0)hist[li]=en;else hist.push(en);
   LOGS[k]=hist.slice(-50);saveLogs();
+}
+// セット削除: 後ろのセットを繰り上げてセット数を1減らす
+function wkDelSet(i){
+  if(!W||W.phase!=='input')return;
+  if(W.sets.length<=1){wkClearToday();return;}
+  W.sets.splice(i,1);
+  const nc=new Set();
+  W.confirmed.forEach(x=>{if(x<i)nc.add(x);else if(x>i)nc.add(x-1);});
+  W.confirmed=nc;
+  if(W.setIdx>i)W.setIdx--;
+  if(W.setIdx>=W.sets.length)W.setIdx=W.sets.length-1;
+  wkSave();vib();
+  toast(`SET ${i+1} を削除しました(以降のセットを繰り上げ)`);
+  renderWk();
+}
+// この種目の今日の記録を一括削除
+function wkClearToday(){
+  if(!W)return;
+  const e=wkEx(),k=exKey(W.dk,e[0]),date=todayStr();
+  if(LOGS[k]){LOGS[k]=LOGS[k].filter(s=>s.date!==date);if(!LOGS[k].length)delete LOGS[k];saveLogs();}
+  vib();toast('この種目の今日の記録を削除しました');
+  closeWk();
+}
+// ホームの完了カードから種目の今日の記録を一括削除
+function delTodayEx(dk,idx){
+  const day=PROGRAM.find(d=>d.key===dk);if(!day||!day.ex[idx])return;
+  const k=exKey(dk,day.ex[idx][0]),date=todayStr();
+  if(LOGS[k]){LOGS[k]=LOGS[k].filter(s=>s.date!==date);if(!LOGS[k].length)delete LOGS[k];saveLogs();}
+  vib();toast('今日の記録を削除しました');
+  renderHome();
+}
+
+/* ====== 左スワイプで削除 ====== */
+function bindSwipes(root){
+  if(!root)return;
+  root.querySelectorAll('.swp').forEach(w=>{
+    const item=w.firstElementChild;
+    let sx=0,sy=0,dx=0,drag=null;
+    w.addEventListener('touchstart',ev=>{sx=ev.touches[0].clientX;sy=ev.touches[0].clientY;dx=0;drag=null;item.style.transition='none';},{passive:true});
+    w.addEventListener('touchmove',ev=>{
+      const tx=ev.touches[0].clientX-sx,ty=ev.touches[0].clientY-sy;
+      if(drag===null){
+        if(Math.abs(tx)>Math.abs(ty)+6)drag=true;
+        else if(Math.abs(ty)>10)drag=false;
+      }
+      if(drag){dx=Math.min(0,tx);item.style.transform=`translateX(${dx}px)`;w.classList.toggle('arm',dx<-72);}
+    },{passive:true});
+    const end=()=>{
+      item.style.transition='transform .18s';
+      if(drag&&dx<-72){item.style.transform='translateX(-110%)';setTimeout(()=>swipeDelete(w.dataset.del),160);}
+      else{item.style.transform='';w.classList.remove('arm');}
+    };
+    w.addEventListener('touchend',end);
+    w.addEventListener('touchcancel',end);
+  });
+}
+function swipeDelete(spec){
+  if(!spec)return;
+  const p=spec.split(':'),type=p[0];
+  if(type==='ex')delTodayEx(p[1],+p[2]);
+  else if(type==='set')wkDelSet(+p[2]);
 }
 function wkConfirm(){
   if(!W)return;
@@ -849,8 +920,8 @@ function eDelDay(btn){
   todayKey=SCHEDULE[todayWd===0?6:todayWd-1]||null;
   activeDay=PROGRAM[0].key;closeSheet();render();toast('メニューを削除しました');
 }
-let edit={ex:null,view:'list',idx:-1,m:null,eq:null,name:'',custom:false,sets:3,reps:'8–12',rir:'1–2',rest:'90秒',label:''};
-function openEditor(){const day=PROGRAM.find(d=>d.key===activeDay);edit={ex:day.ex.map(e=>e.slice()),view:'list',idx:-1,m:null,eq:null,name:'',custom:false,sets:3,reps:'8–12',rir:'1–2',rest:'90秒',label:day.label,color:day.color};renderEditor();showSheet();}
+let edit={ex:null,view:'list',idx:-1,m:null,eq:null,name:'',custom:false,sets:3,reps:'8–12',rir:'1–2',rest:'120秒',label:''};
+function openEditor(){const day=PROGRAM.find(d=>d.key===activeDay);edit={ex:day.ex.map(e=>e.slice()),view:'list',idx:-1,m:null,eq:null,name:'',custom:false,sets:3,reps:'8–12',rir:'1–2',rest:'120秒',label:day.label,color:day.color};renderEditor();showSheet();}
 function eColor(c){edit.color=c;renderEditor();}
 function renderEditor(){
   if(edit.view==='list'){
@@ -861,7 +932,7 @@ function renderEditor(){
       <div class="sec">テーマカラー</div>
       <div>${PALETTE.map(c=>`<span class="sw ${edit.color===c?'on':''}" style="background:${c}" onclick="eColor('${c}')"></span>`).join('')}</div>
       <div class="sec">種目(部位をまたいで自由に組めます)</div>`;
-    edit.ex.forEach((e,i)=>{h+=`<div class="erow"><div class="nm">${esc(e[0])}<div style="margin-top:3px">${EQ_LABEL[e[5]]?`<span class="badge">${EQ_LABEL[e[5]]}</span> `:''}${e[4]?`<span class="tag">${e[4]}</span> `:''}<span class="pv">${e[1]} ・ RIR ${e[2]} ・ ${e[3]}</span></div></div>
+    edit.ex.forEach((e,i)=>{h+=`<div class="erow"><div class="nm">${esc(e[0])}<div style="margin-top:3px">${EQ_LABEL[e[5]]?`<span class="badge">${EQ_LABEL[e[5]]}</span> `:''}${e[4]?`<span class="tag">${e[4]}</span> `:''}<span class="pv">${e[1]} ・ 休憩 ${e[3]}</span></div></div>
       <button class="ic" onclick="eMove(${i},-1)">▲</button><button class="ic" onclick="eMove(${i},1)">▼</button>
       <button class="ic" onclick="eEdit(${i})">✎</button><button class="ic" style="color:var(--down)" onclick="eDel(${i})">✕</button></div>`;});
     h+=`<button class="btn" style="margin-top:14px;width:100%;background:none;border:1px solid var(--accent);color:var(--accent)" onclick="eAdd()">＋ 種目を追加</button>
@@ -873,7 +944,7 @@ function renderEditor(){
 function eMove(i,d){const j=i+d;if(j<0||j>=edit.ex.length)return;[edit.ex[i],edit.ex[j]]=[edit.ex[j],edit.ex[i]];renderEditor();}
 function eDel(i){edit.ex.splice(i,1);renderEditor();}
 function eCommit(){newDayKey=null;const label=(edit.label||'').trim();PROGRAM=PROGRAM.map(d=>d.key===activeDay?{...d,ex:edit.ex,label:label||d.label,color:edit.color||d.color}:d);saveProgram();closeSheet();render();toast('メニューを保存');}
-function eAdd(){Object.assign(edit,{view:'add',idx:-1,m:null,eq:null,name:'',custom:false,sets:3,reps:'8–12',rir:'1–2',rest:'90秒'});renderEditor();}
+function eAdd(){Object.assign(edit,{view:'add',idx:-1,m:null,eq:null,name:'',custom:false,sets:3,reps:'8–12',rir:'1–2',rest:'120秒'});renderEditor();}
 function eEdit(i){const e=edit.ex[i];Object.assign(edit,{view:'edit',idx:i,m:null,eq:e[5],name:e[0],custom:false,sets:parseInt(e[1])||3,reps:(e[1].split('×')[1]||'8–12').trim(),rir:e[2],rest:e[3]});renderEditor();}
 function renderForm(){
   const isEdit=edit.view==='edit';
@@ -888,12 +959,11 @@ function renderForm(){
     }
   }
   if(isEdit||(edit.m&&edit.eq)){
-    const REPS=['5–8','6–10','8–12','10–12','12–15','15–20'],RIRS=['0–1','1–2','2–3'],RESTS=['60秒','90秒','120秒','150秒','180秒'];
+    const REPS=['5–8','6–10','8–12','10–12','12–15','15–20'],RESTS=['60秒','90秒','120秒','150秒','180秒'];
     h+=`<div class="sec">${isEdit?'①':'④'} 目標設定</div>
       <div class="pv" style="margin-bottom:6px">セット数: ${edit.sets}</div>
       <div class="ins" style="margin-bottom:6px"><button class="sb" onclick="eStep(-1)">−</button><span style="width:34px;text-align:center;font-weight:800;font-size:19px">${edit.sets}</span><button class="sb" onclick="eStep(1)">＋</button></div>
       <div class="pv" style="margin:10px 0 6px">レップ</div><div>${REPS.map(r=>`<span class="pill ${edit.reps===r?'on':''}" onclick="eF('reps','${r}')">${r}</span>`).join('')}</div>
-      <div class="pv" style="margin:10px 0 6px">RIR</div><div>${RIRS.map(r=>`<span class="pill ${edit.rir===r?'on':''}" onclick="eF('rir','${r}')">${r}</span>`).join('')}</div>
       <div class="pv" style="margin:10px 0 6px">休息</div><div>${RESTS.map(r=>`<span class="pill ${edit.rest===r?'on':''}" onclick="eF('rest','${r}')">${r}</span>`).join('')}</div>`;
   }
   const can=edit.name&&(isEdit||(edit.m&&edit.eq));
@@ -1074,11 +1144,11 @@ function delAll(btn){if(!delArm){delArm=true;btn.textContent='もう一度タッ
   LOGS={};BW=[];BIG3={bench:[],squat:[],deadlift:[]};PROGRAM=clone(DEFAULT);MEMO={};LOC={};saveLocStore();saveMemoStore();saveLogs();saveBW();saveBIG3();saveProgram();delArm=false;activeDay=todayKey||'chest';renderMore();toast('全データを削除しました');}
 
 /* ====== 休憩タイマーエンジン ====== */
-let tEl=0,tRun=false,tAlert=90,tFired=false,tInt=null,actx=null;
+let tEl=0,tRun=false,tAlert=120,tFired=false,tInt=null,actx=null;
 let AUTOTIMER=true;try{AUTOTIMER=localStorage.getItem('gym-autotimer-v1')!=='0';}catch(e){}
 function toggleAuto(){AUTOTIMER=!AUTOTIMER;try{localStorage.setItem('gym-autotimer-v1',AUTOTIMER?'1':'0');}catch(e){}if(document.getElementById('timerBox'))renderTimer();}
 // '90秒'/'2分'/'2–3分'/'60–90秒' → 秒数(下限値を採用)
-function restSecs(rest){const m=String(rest||'').match(/(\d+(?:\.\d+)?)/);if(!m)return 90;const v=parseFloat(m[1]);return Math.max(15,Math.round(/分/.test(rest)?v*60:v));}
+function restSecs(rest){const m=String(rest||'').match(/(\d+(?:\.\d+)?)/);if(!m)return 120;const v=parseFloat(m[1]);return Math.max(15,Math.round(/分/.test(rest)?v*60:v));}
 function startRestTimer(sec){
   tAlert=sec;tEl=0;tFired=false;
   clearInterval(tInt);
@@ -1265,7 +1335,7 @@ function renderHistory(){
 function setHPart2(){hview='part';expandedH.clear();renderHistory();}
 
 /* ====== 起動 ====== */
-initStore();migrateMenu();
+initStore();migrateMenu();migrateMenuV3();
 todayKey=SCHEDULE[todayWd===0?6:todayWd-1]||null;
 activeDay=todayKey||PROGRAM[0]?.key||'chest';
 hpart=todayKey||PROGRAM[0]?.key||'chest';
