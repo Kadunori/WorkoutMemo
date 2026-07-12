@@ -55,6 +55,8 @@
   .copybtn{margin-top:12px;width:100%;height:52px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);font-weight:800;font-size:.92rem;}
   .startall{width:100%;height:64px;border-radius:16px;border:none;background:var(--accent);color:#0d0e11;font-weight:900;font-size:1.15rem;margin:4px 0 18px;box-shadow:0 6px 20px color-mix(in srgb,var(--accent) 30%,transparent);}
   .editbtn{margin-left:auto;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:10px 16px;color:var(--txt);font-weight:700;font-size:.85rem;}
+  .locchip{display:inline-flex;align-items:center;max-width:100%;min-height:44px;padding:0 16px;margin:-6px 0 14px;border-radius:999px;border:1px dashed var(--line);background:none;color:var(--muted);font-weight:700;font-size:.85rem;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+  .locchip.set{border-style:solid;color:var(--txt);background:var(--panel);}
   .dh{display:flex;align-items:flex-start;gap:10px;}
 
   /* ===== フルスクリーン記録モード ===== */
@@ -397,7 +399,7 @@ function todaySession(d,n){const h=LOGS[exKey(d,n)]||[],t=todayStr();return h.fi
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 /* ====== ストレージ(localStorage) ====== */
-let PROGRAM=[], LOGS={}, BW=[], BIG3={bench:[],squat:[],deadlift:[]}, SCHEDULE=[...DEFAULT_SCHEDULE], STORAGE_OK=false, MEMO={}, TIPDONE=false;
+let PROGRAM=[], LOGS={}, BW=[], BIG3={bench:[],squat:[],deadlift:[]}, SCHEDULE=[...DEFAULT_SCHEDULE], STORAGE_OK=false, MEMO={}, TIPDONE=false, LOC={};
 function initStore(){
   try{localStorage.setItem('__t','1');localStorage.removeItem('__t');STORAGE_OK=true;
     PROGRAM=JSON.parse(localStorage.getItem('gym-program-v1')||'null')||clone(DEFAULT);
@@ -406,6 +408,7 @@ function initStore(){
     BIG3=JSON.parse(localStorage.getItem('gym-big3-v1')||'null')||{bench:[],squat:[],deadlift:[]};
     SCHEDULE=JSON.parse(localStorage.getItem('gym-schedule-v1')||'null')||[...DEFAULT_SCHEDULE];
     MEMO=JSON.parse(localStorage.getItem('gym-memo-v1')||'{}');
+    LOC=JSON.parse(localStorage.getItem('gym-loc-v1')||'{}');
     TIPDONE=localStorage.getItem('gym-tip-v1')==='1';
   }catch(e){STORAGE_OK=false;PROGRAM=clone(DEFAULT);}
 }
@@ -432,6 +435,7 @@ const saveBW=()=>{try{localStorage.setItem('gym-bw-v1',JSON.stringify(BW));}catc
 const saveBIG3=()=>{try{localStorage.setItem('gym-big3-v1',JSON.stringify(BIG3));}catch(e){}};
 const saveSchedule=()=>{try{localStorage.setItem('gym-schedule-v1',JSON.stringify(SCHEDULE));}catch(e){}};
 const saveMemoStore=()=>{try{localStorage.setItem('gym-memo-v1',JSON.stringify(MEMO));}catch(e){}};
+const saveLocStore=()=>{try{localStorage.setItem('gym-loc-v1',JSON.stringify(LOC));}catch(e){}};
 
 /* ====== 状態 ====== */
 const todayWd=new Date().getDay();
@@ -474,6 +478,8 @@ function renderHome(){
     <button class="editbtn" onclick="openEditor()">✎ 編集</button></div>
     <div class="pv" style="margin-top:2px">記録済み ${logged}/${day.ex.length} 種目 ・ 合計 ${totalSets(day.ex)}セット</div>
     <div class="pbar"><i style="width:${day.ex.length?Math.round(logged/day.ex.length*100):0}%"></i></div>`;
+  const loc=LOC[todayStr()];
+  h+=`<button class="locchip ${loc?'set':''}" onclick="openLocSheet()">📍 ${loc?esc(loc.name||'現在地(名前なし)')+(loc.lat!=null?' ✓GPS':''):'今日の場所をメモ'}</button>`;
   if(nextIdx>=0&&day.ex.length)
     h+=`<button class="startall" onclick="openWorkout('${day.key}',${nextIdx})">${logged?'▶ 続きから記録する':'▶ ワークアウト開始'}</button>`;
   else if(day.ex.length)
@@ -513,6 +519,64 @@ function homeCard(day,e,idx,isNext){
     <div class="cpv">${prevTxt}${MEMO[exKey(day.key,name)]?`<br>📝 ${esc(MEMO[exKey(day.key,name)])}`:''}</div>
     ${prev?`<button class="copybtn" onclick="event.stopPropagation();copyPrev('${day.key}',${idx})">⚡ 前回と同じ内容で記録(1タップ)</button>`:''}
   </div>`;
+}
+
+/* ====== 場所メモ(GPS or 手入力) ====== */
+let tmpLoc=null;
+function openLocSheet(){
+  tmpLoc=clone(LOC[todayStr()]||{name:'',lat:null,lng:null});
+  renderLocSheet();showSheet();
+}
+// 過去に使った場所名(新しい順・重複なし)
+function pastPlaces(){
+  const seen=new Set(),out=[];
+  Object.keys(LOC).sort().reverse().forEach(d=>{
+    const p=LOC[d],n=(p.name||'').trim();
+    if(n&&!seen.has(n)){seen.add(n);out.push({name:n,lat:p.lat,lng:p.lng});}
+  });
+  return out.slice(0,8);
+}
+function renderLocSheet(){
+  const past=pastPlaces();
+  const mapLink=tmpLoc.lat!=null?`https://www.google.com/maps?q=${tmpLoc.lat},${tmpLoc.lng}`:null;
+  document.getElementById('sheet').innerHTML=`
+    <h3 style="margin:0 0 4px">📍 今日の場所</h3>
+    <p class="pv" style="margin:0 0 8px">どこで筋トレしたかをメモします(1日1件)。</p>
+    ${past.length?`<div class="sec">前に行った場所(タップで選択)</div>
+      <div>${past.map(p=>`<span class="pill ${tmpLoc.name===p.name?'on':''}" onclick="locPick(this.textContent)">${esc(p.name)}</span>`).join('')}</div>`:''}
+    <div class="sec">場所の名前(手入力もOK)</div>
+    <input type="text" id="locName" value="${esc(tmpLoc.name||'')}" oninput="tmpLoc.name=this.value" maxlength="40" placeholder="例: ゴールドジム○○店 / 自宅"
+      style="width:100%;height:48px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);padding:0 14px;font-size:15px;font-weight:700">
+    <div class="sec">GPS(現在地)</div>
+    <button class="btn g" id="gpsBtn" style="width:100%;height:52px" onclick="locGPS()">📡 現在地を取得して保存する</button>
+    <div class="pv" id="gpsInfo" style="margin-top:8px;min-height:1.2em">${tmpLoc.lat!=null
+      ?`✓ 取得済み(${(+tmpLoc.lat).toFixed(4)}, ${(+tmpLoc.lng).toFixed(4)}) <a href="${mapLink}" target="_blank" rel="noopener" style="color:var(--accent)">地図で確認</a> ・ <a href="javascript:void(0)" onclick="tmpLoc.lat=null;tmpLoc.lng=null;renderLocSheet()" style="color:var(--down)">座標を消す</a>`
+      :'未取得(名前だけの保存もできます)'}</div>
+    <div class="saverow" style="margin-top:16px"><button class="btn" onclick="locSave()">保存</button><button class="btn g" onclick="closeSheet()">取消</button></div>
+    ${LOC[todayStr()]?`<button class="danger" style="margin-top:12px" onclick="locDel()">今日の場所を削除</button>`:''}`;
+}
+function locPick(n){tmpLoc.name=n;renderLocSheet();}
+function locGPS(){
+  if(!navigator.geolocation){toast('この端末では位置情報が使えません');return;}
+  const btn=document.getElementById('gpsBtn');btn.disabled=true;btn.textContent='📡 取得中…';
+  navigator.geolocation.getCurrentPosition(
+    pos=>{tmpLoc.lat=Math.round(pos.coords.latitude*1e5)/1e5;tmpLoc.lng=Math.round(pos.coords.longitude*1e5)/1e5;vib();renderLocSheet();},
+    err=>{toast(err.code===1?'位置情報が許可されていません(設定から許可してください)':'現在地を取得できませんでした');renderLocSheet();},
+    {enableHighAccuracy:false,timeout:10000,maximumAge:60000});
+}
+function locSave(){
+  const name=(tmpLoc.name||'').trim();
+  if(!name&&tmpLoc.lat==null){toast('名前かGPSのどちらかを入れてください');return;}
+  LOC[todayStr()]={name,lat:tmpLoc.lat,lng:tmpLoc.lng};
+  saveLocStore();closeSheet();renderHome();toast('場所を記録しました ✓');
+}
+function locDel(){
+  delete LOC[todayStr()];
+  saveLocStore();closeSheet();renderHome();toast('今日の場所を削除しました');
+}
+function locLabel(date){
+  const p=LOC[date];if(!p)return '';
+  return p.name||(p.lat!=null?'GPSのみ':'');
 }
 
 // 前回と同じ内容を今日の記録として1タップ保存
@@ -996,9 +1060,10 @@ function scheduleCommit(){
   closeSheet();renderMore();toast('スケジュールを保存');
 }
 function exportCsv(){
-  const rows=[['日付','部位','種目','セット','重量kg','回数']];
-  PROGRAM.forEach(d=>d.ex.forEach(e=>(LOGS[exKey(d.key,e[0])]||[]).forEach(s=>s.sets.forEach((st,i)=>{if(st.w!=null||st.r!=null)rows.push([s.date,d.label,e[0],i+1,st.w??'',st.r??'']);}))));
-  BW.forEach(b=>rows.push([b.date,'体重','体重','',b.kg,'']));
+  const rows=[['日付','部位','種目','セット','重量kg','回数','場所','緯度','経度']];
+  const locCols=date=>{const p=LOC[date];return p?[p.name||'',p.lat??'',p.lng??'']:['','',''];};
+  PROGRAM.forEach(d=>d.ex.forEach(e=>(LOGS[exKey(d.key,e[0])]||[]).forEach(s=>s.sets.forEach((st,i)=>{if(st.w!=null||st.r!=null)rows.push([s.date,d.label,e[0],i+1,st.w??'',st.r??'',...locCols(s.date)]);}))));
+  BW.forEach(b=>rows.push([b.date,'体重','体重','',b.kg,'','','','']));
   if(rows.length<2){toast('記録がありません');return;}
   const csv='\ufeff'+rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob=new Blob([csv],{type:'text/csv'}),url=URL.createObjectURL(blob),a=document.createElement('a');
@@ -1006,7 +1071,7 @@ function exportCsv(){
 }
 let delArm=false;
 function delAll(btn){if(!delArm){delArm=true;btn.textContent='もう一度タップで全削除';setTimeout(()=>{delArm=false;btn.textContent='全データを削除';},3000);return;}
-  LOGS={};BW=[];BIG3={bench:[],squat:[],deadlift:[]};PROGRAM=clone(DEFAULT);MEMO={};saveMemoStore();saveLogs();saveBW();saveBIG3();saveProgram();delArm=false;activeDay=todayKey||'chest';renderMore();toast('全データを削除しました');}
+  LOGS={};BW=[];BIG3={bench:[],squat:[],deadlift:[]};PROGRAM=clone(DEFAULT);MEMO={};LOC={};saveLocStore();saveMemoStore();saveLogs();saveBW();saveBIG3();saveProgram();delArm=false;activeDay=todayKey||'chest';renderMore();toast('全データを削除しました');}
 
 /* ====== 休憩タイマーエンジン ====== */
 let tEl=0,tRun=false,tAlert=90,tFired=false,tInt=null,actx=null;
@@ -1165,6 +1230,7 @@ function histDate(){
       totV+=v;totS+=sc;
       badges+=`<span class="badge" style="color:${meta.color};border-color:${meta.color}66;margin-right:5px">${esc(meta.label)}</span>`;
       body+=`<div style="margin-top:6px"><div class="pv" style="color:${meta.color};font-weight:800">${esc(meta.label)}</div>${exLines(list)}</div>`;});
+    if(locLabel(date))badges+=`<span class="tag">📍 ${esc(locLabel(date))}</span>`;
     return sessionCard('hd-'+date,`${m}/${d} <span class="pv">(${wdName(date)})</span>`,badges,totS,totV,body);
   }).join('');
 }
