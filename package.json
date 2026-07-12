@@ -14,5 +14,8 @@
     "@capacitor/cli": "^8.4.1",
     "@capacitor/core": "^8.4.1",
     "@capacitor/ios": "^8.4.1"
+  },
+  "devDependencies": {
+    "wrangler": "^4.110.0"
   }
 }
